@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -std=c99 -g
-SOURCES=test.c disk_cache.c
+SOURCES=test.c disk_cache.c sha1/sha1.c
 
 
 build: $(SOURCES)
