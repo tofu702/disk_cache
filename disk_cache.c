@@ -47,9 +47,9 @@ DCCache DCLoad(char *cache_directory_path) {
   size_t lines_start_offset = sizeof(DCCacheHeader_t); // The lines starts after the header
   size_t lines_size = cache->header.num_lines * sizeof(DCCacheLine_t);
   size_t total_file_size = lines_start_offset + lines_size;
-  cache->mmap_start = mmap(0, lines_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FILE, cache->fd, 0);
+  cache->mmap_start = mmap(0, total_file_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FILE, cache->fd, 0);
   if (cache->mmap_start == MAP_FAILED) {
-    fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", cache->fd, lines_size, 
+    fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size, 
             strerror(errno));
     assert(0);
   }
@@ -71,6 +71,26 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
 DCData DCLookup(DCCache cache, char *key) {
   DCData returnme = {.data=NULL, .data_len=0};
   return returnme;
+}
+
+void DCPrint(DCCache cache) {
+  printf("***PRINTING CACHE DATA***\n");
+  printf("\tDirectory Path: %s\n", cache->directory_path);
+  printf("\tHeader num_lines: %d\n", cache->header.num_lines);
+  printf("\tHeader evict_limit_in_bytes: %d\n", cache->header.evict_limit_in_bytes);
+  printf("\tfd: %d\n", cache->fd);
+  printf("\tlines address: %llx\n", (uint64_t) cache->lines);
+  printf("\tmmap_start address: %llx\n", (uint64_t) cache->mmap_start);
+  for (uint32_t i=0; i < cache->header.num_lines; i++) {
+    DCCacheLine_t *line = cache->lines + i;
+    if (line->last_access_time_in_ms_from_epoch == 0) {
+      printf("\t\tLine %03d: EMPTY\n", i);
+    } else {
+      printf("\t\tLine %03d: %llx%llx | %llu ms | %x flags | %u bytes\n", i, line->key_sha1[0],
+             line->key_sha1[1], line->last_access_time_in_ms_from_epoch, line->flags,
+             line->size_in_bytes);
+    }
+  }
 }
 
 /***STATIC HELPERS***/

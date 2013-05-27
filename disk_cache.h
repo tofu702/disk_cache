@@ -30,7 +30,8 @@ typedef struct __attribute__ ((__packed__)) {
   uint32_t flags; // 4 bytes
 } DCCacheLine_t;
 
-
+/* A struct used to return a data result
+ */ 
 typedef struct {
   uint8_t *data;
   uint64_t data_len;
@@ -47,6 +48,8 @@ typedef struct {
 typedef DCCache_t *DCCache;
 
 
+/***Primary Functions***/
+
 
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines);
 
@@ -57,5 +60,10 @@ void DCCloseAndFree(DCCache cache);
 void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
 
 DCData DCLookup(DCCache cache, char *key);
+
+
+/***Debugging Functions***/
+/* Print the cache contents to stdout */
+void DCPrint(DCCache cache);
 
 #endif
