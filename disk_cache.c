@@ -195,7 +195,7 @@ static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[
 static void removeFileForLine(DCCache cache, DCCacheLine_t *line) {
   char path_to_remove[computeMaxFilePathSize(cache->directory_path)];
   pathForSHA1(cache, line->key_sha1, path_to_remove);
-  printf("Dry Run: Would delete file '%s'\n", path_to_remove);
+  remove(path_to_remove);
 }
 
 static void SHA1ForKey(char *key, uint64_t sha1[2]) {
