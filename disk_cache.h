@@ -67,6 +67,9 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
 DCData DCLookup(DCCache cache, char *key);
 
 
+void DCDataFree(DCData data);
+
+
 /***Debugging Functions***/
 /* Print the cache contents to stdout */
 void DCPrint(DCCache cache);

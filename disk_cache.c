@@ -39,6 +39,9 @@ static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]
 static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]);
 
 
+/***IMPLEMENTATION OF PUBLIC FUNCTIONS***/
+
+
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
   char file_path[file_path_size];
@@ -68,7 +71,7 @@ DCCache DCLoad(char *cache_directory_path) {
   if (cache->mmap_start == MAP_FAILED) {
     fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size, 
             strerror(errno));
-    assert(0);
+    assert(0); // TODO: This should never happen, but fail more gracefully
   }
   cache->lines = cache->mmap_start + lines_start_offset;
   return cache;
@@ -125,6 +128,15 @@ DCData DCLookup(DCCache cache, char *key) {
   return readDataFileForKey(cache, key_sha1);
 }
 
+void DCDataFree(DCData data) {
+  free(data->data);
+  free(data);
+}
+
+
+/***Public debugging functions***/
+
+
 void DCPrint(DCCache cache) {
   printf("***PRINTING CACHE DATA***\n");
   printf("\tDirectory Path: %s\n", cache->directory_path);
@@ -171,7 +183,6 @@ static void createDataFile(char *file_path, uint32_t num_lines) {
   }
   fclose(outfile);
 }
-
 
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines) {
   uint32_t *key_in_32_bit_chunks = (uint32_t*) key_sha1;
