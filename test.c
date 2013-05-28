@@ -116,10 +116,74 @@ int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
   return 0;
 }
 
+int evictionTest() {
+  DCCache cache = DCMake("/tmp", 64, 11);
+  DCAdd(cache, "key1", (uint8_t *)"val1", 5);
+  usleep(2000);
+  DCAdd(cache, "key2", (uint8_t *)"v2", 3);
+  // Both Keys should be here:88
+  DCData r1 = DCLookup(cache, "key1");
+  DCData r2 = DCLookup(cache, "key2");
+  DCCloseAndFree(cache);
+
+  if (!r1 || !r2) {
+    printf("Test Failure, both r1 & r2 should have existed\n");
+    return 1;
+  }
+  DCDataFree(r1);
+  DCDataFree(r2);
+
+  DCCache cache2 = DCLoad("/tmp");
+  usleep(2000);
+  // Will trigger an eviction down to size 8-5 = 3 (IE: nuke both val1)
+  DCAdd(cache2, "key3", (uint8_t *)"v3", 3); 
+  r1 = DCLookup(cache2, "key1");
+  r2 = DCLookup(cache2, "key2");
+  DCData r3 = DCLookup(cache2, "key3");
+
+
+  if (r1) {
+    printf("Test failure: r1 should have been evicted\n");
+    return 1;
+  }
+  if (!r2) {
+    printf("Test failure: r2 should not have been evicted\n");
+    return 1;
+  }
+
+  usleep(2000);
+  // Will trigger an eviction down to size 3 (IE: nukes v2)
+  DCAdd(cache2, "key4", (uint8_t *)"val4", 5);
+  r1 = DCLookup(cache2, "key1");
+  r2 = DCLookup(cache2, "key2");
+  r3 = DCLookup(cache2, "key3");
+  DCData r4 = DCLookup(cache2, "key4");
+  DCCloseAndFree(cache2);
+
+  if (r1 || r2) {
+    printf("Test Failure: r1 & r2 should have been evicted\n");
+    return 1;
+  }
+  if (!r3) {
+    printf("Test Failure: r3 should not have been evicted\n");
+    return 1;
+  }
+  if (!r4) {
+    printf("Test Failure: r4 should be here?!?\n");
+    return 1;
+  }
+  
+  DCDataFree(r3);
+  DCDataFree(r4);
+  printf("evictionTest passed\n");
+  return 0;
+}
+
 int main(int argc, char **argv) {
   createTest();
   simpleAddTest();
   addTestWithOverwrites();
   testLookupSetsAccessTimeAndReplacesEarliestAccessed();
+  evictionTest();
   return 0;
 }
