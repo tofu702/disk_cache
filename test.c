@@ -30,6 +30,7 @@ int simpleAddTest() {
 
   if (strncmp((char *)result->data, test_val, strlen(test_val)) == 0) {
     printf("addTest passed '%s' == '%s'\n", test_val, result->data);
+    DCDataFree(result);
     return 0;
   } else {
     printf("addTest failed '%s' != '%s'\n", test_val, result->data);
@@ -49,6 +50,7 @@ int addTestWithOverwrites() {
   DCData r1 = DCLookup(cache, "key1");
   DCData r2 = DCLookup(cache, "key2");
   DCData r3 = DCLookup(cache, "key3");
+  DCCloseAndFree(cache);
 
   if (r1) {
     printf("Test Failure: Should have deleted 'key1'\n");
@@ -65,7 +67,52 @@ int addTestWithOverwrites() {
     return 1;
   }
 
+  DCDataFree(r2);
+  DCDataFree(r3);
+
   printf("Passed addTestWithOverwrites\n");
+  return 0;
+}
+
+int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
+  DCCache cache = DCMake("/tmp", 2);
+  DCAdd(cache, "key1", (uint8_t *)"val1", 5);
+  DCAdd(cache, "key2", (uint8_t *)"val2", 5);
+  usleep(2000);
+  DCDataFree(DCLookup(cache, "key2"));
+  usleep(2000);
+  DCDataFree(DCLookup(cache, "key1"));
+  usleep(2000);
+  DCAdd(cache, "key3", (uint8_t *) "val3", 5);
+  
+  DCData r1 = DCLookup(cache, "key1");
+  DCData r2 = DCLookup(cache, "key2");
+  DCData r3 = DCLookup(cache, "key3");
+  DCCloseAndFree(cache);
+  
+  if (!r1) {
+    printf("Test Failure: Should have gotten a non-null r1\n");
+    return 1;
+  }
+  if (strcmp((char *)r1->data, "val1") != 0) {
+    printf("Test Failure: Should have found 'val1' for key 'key1', instead got '%s'\n",
+           (char *) r1->data);
+    return 1;
+  }
+  if (r2) {
+    printf("Test failure: Should have delete 'key2'\n");
+    return 1;
+  }
+  if (strcmp((char *) r3->data, "val3") != 0) {
+    printf("Test Failure: Should have found 'val3' as value for 'key3', instead got '%s'\n",
+           (char *) r3->data);
+    return 1;
+  }
+
+  DCDataFree(r1);
+  DCDataFree(r3);
+
+  printf("Passed testLookupSetsAccessTimeAndReplacesEarliestAccessed\n");
   return 0;
 }
 
@@ -73,5 +120,6 @@ int main(int argc, char **argv) {
   createTest();
   simpleAddTest();
   addTestWithOverwrites();
+  testLookupSetsAccessTimeAndReplacesEarliestAccessed();
   return 0;
 }
