@@ -24,7 +24,9 @@ typedef struct __attribute__ ((__packed__)) {
  * This means we should be able to achieve a packing of 32 cache lines per KB.
  */ 
 typedef struct __attribute__ ((__packed__)) {
+  // If this field is 0, this entry is considered unoccupied
   uint64_t last_access_time_in_ms_from_epoch; // 8 bytes
+
   uint64_t key_sha1[2]; // 16 bytes
   uint32_t size_in_bytes; // 4 byte
   uint32_t flags; // 4 bytes
