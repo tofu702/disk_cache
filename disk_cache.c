@@ -34,6 +34,11 @@ static uint64_t currentTimeInMSFromEpoch();
 static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[2]);
 static void saveDataFileForKey(DCCache cache, uint64_t sha1[2], uint8_t *data, uint64_t data_len);
 
+//DCLookupHelpers
+static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]);
+static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]);
+
+
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
   char file_path[file_path_size];
@@ -100,8 +105,24 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
 }
 
 DCData DCLookup(DCCache cache, char *key) {
-  DCData returnme = {.data=NULL, .data_len=0};
-  return returnme;
+  uint64_t key_sha1[2];
+  DCCacheLine_t *line;
+  
+  SHA1ForKey(key, key_sha1);
+
+  line = findLineThatMatchesKey(cache, key_sha1);
+
+  // None was found we don't have this data
+  if (!line) {
+    return NULL;
+  }
+
+  //Update the line's last accessed time
+  line->last_access_time_in_ms_from_epoch = currentTimeInMSFromEpoch();
+
+  //Return the file
+  // TODO: Handle a NULL return value by clearing the cache line
+  return readDataFileForKey(cache, key_sha1);
 }
 
 void DCPrint(DCCache cache) {
@@ -224,4 +245,57 @@ static void saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, 
   FILE *outfile = fopen(file_path, "w");
   fwrite(data, sizeof(uint8_t), data_len, outfile);
   fclose(outfile);
+}
+
+
+/***DCLookup Helpers***/
+
+
+/* Return the line that exactly matches the provided key_sha1. If none is found we return NULL.
+ */ 
+static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]) {
+  uint32_t indicies[NUM_LOOKUP_INDICIES];
+
+  computeLookupIndiciesForKey(key_sha1, indicies, cache->header.num_lines);
+  for (int i=0; i < NUM_LOOKUP_INDICIES; i++) {
+    DCCacheLine_t *line = cache->lines + indicies[i];
+    if(line->key_sha1[0] == key_sha1[0] && line->key_sha1[1] == key_sha1[1]) {
+      return line;
+    }
+  }
+
+  return NULL;
+}
+
+/* Read the data for the file that the key points to and return a DCData if it's readable or NULL if it's not
+ */
+static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
+  DCData returnme;
+  char file_path[computeMaxFilePathSize(cache->directory_path)];
+  pathForSHA1(cache, key_sha1, file_path);
+  
+  FILE *infile = fopen(file_path, "r");
+  
+  // For some reason we couldn't open the file
+  if (!infile) {
+    fprintf(stderr, "Unable to open cache file '%s'\n", file_path);
+    return NULL;
+  }
+
+  returnme = calloc(1, sizeof(DCData_t));
+  // Determine the file's size, not that this only works up to 2 GB on 32 bit machines
+  // TODO: Change this to fgetpos/fsetpos to support larger files
+  fseek(infile, 0, SEEK_END);
+  returnme->data_len = ftell(infile);
+  fseek(infile, 0, SEEK_SET);
+
+  returnme->data = calloc(returnme->data_len, sizeof(uint8_t));
+
+  // TODO: Use a less nuclear error handling mechanism
+  assert(returnme->data); // Will exit if a null pointer (not enough memory)
+
+  fread(returnme->data, sizeof(uint8_t), returnme->data_len, infile);
+  fclose(infile);
+
+  return returnme;
 }

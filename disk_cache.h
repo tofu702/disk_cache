@@ -37,7 +37,7 @@ typedef struct __attribute__ ((__packed__)) {
 typedef struct {
   uint8_t *data;
   uint64_t data_len;
-} DCData;
+} DCData_t;
 
 typedef struct {
   DCCacheHeader_t header;
@@ -47,6 +47,9 @@ typedef struct {
   void *mmap_start; 
 } DCCache_t;
 
+
+//Abstract Types
+typedef DCData_t *DCData;
 typedef DCCache_t *DCCache;
 
 
