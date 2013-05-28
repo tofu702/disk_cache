@@ -7,7 +7,7 @@
 
 
 int createTest() {
-  DCCache cache = DCMake("/tmp", 16);
+  DCCache cache = DCMake("/tmp", 16, 0);
   DCCloseAndFree(cache);
   printf("createTest Complete");
   return 0;
@@ -17,7 +17,7 @@ int simpleAddTest() {
   char *test_key = "TEST KEY";
   char *test_val = "TEST VAL";
 
-  DCCache cache = DCMake("/tmp", 16);
+  DCCache cache = DCMake("/tmp", 16, 0);
   DCCloseAndFree(cache);
 
   DCCache cache2 = DCLoad("/tmp");
@@ -39,7 +39,7 @@ int simpleAddTest() {
 }
 
 int addTestWithOverwrites() {
-  DCCache cache = DCMake("/tmp", 2);
+  DCCache cache = DCMake("/tmp", 2, 0);
   // It should evict the oldest
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
   usleep(2000);
@@ -75,7 +75,7 @@ int addTestWithOverwrites() {
 }
 
 int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
-  DCCache cache = DCMake("/tmp", 2);
+  DCCache cache = DCMake("/tmp", 2, 0);
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
   DCAdd(cache, "key2", (uint8_t *)"val2", 5);
   usleep(2000);

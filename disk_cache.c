@@ -19,34 +19,49 @@
 #define CACHE_FN "cache_data"
 #define NUM_LOOKUP_INDICIES 4
 #define UNUSED_LAST_ACCESS_TIME 0
+#define EVICT_TO_THIS_RATIO .75 //Eviction is expensive, so we want to evict more than what we need
+
+/***INTERNAL STRUCTS***/
+typedef struct {
+  DCCacheLine_t *line;
+  int line_idx; //Probably not needed
+  uint64_t last_access_time_in_ms_from_epoch;
+} LineSortable_t;
 
 /***PREPROCESSOR FUNCTION DECLARATIONS***/
 static size_t computeMaxFilePathSize(char *cache_directory_path);
 static void computeCachePath(char *cache_directory_path, char *dest, int dest_len);
-static void createDataFile(char *file_path, uint32_t num_lines);
+static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes);
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines);
 static void SHA1ForKey(char *key, uint64_t sha1[2]);
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest);
+static void removeLine(DCCache cache, DCCacheLine_t *line);
 static void removeFileForLine(DCCache cache, DCCacheLine_t *line);
 static uint64_t currentTimeInMSFromEpoch();
+static void recomputeCacheSizeFromLines(DCCache cache);
+static void maybeEvict(DCCache cache, uint64_t proposed_increase_bytes);
 
 //DCAdd Helpers
 static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[2]);
 static void saveDataFileForKey(DCCache cache, uint64_t sha1[2], uint8_t *data, uint64_t data_len);
 
-//DCLookupHelpers
+//DCLookup Helpers
 static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]);
 static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]);
+
+//Evict Helpers
+static LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache);
+static int sortableCompareFunc(const void *a, const void *b);
 
 
 /***IMPLEMENTATION OF PUBLIC FUNCTIONS***/
 
 
-DCCache DCMake(char *cache_directory_path, uint32_t num_lines) {
+DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_bytes) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
   char file_path[file_path_size];
   computeCachePath(cache_directory_path, file_path, file_path_size);
-  createDataFile(file_path, num_lines);
+  createDataFile(file_path, num_lines, max_bytes);
 
   return DCLoad(cache_directory_path);
 }
@@ -74,6 +89,7 @@ DCCache DCLoad(char *cache_directory_path) {
     assert(0); // TODO: This should never happen, but fail more gracefully
   }
   cache->lines = cache->mmap_start + lines_start_offset;
+  recomputeCacheSizeFromLines(cache);
   return cache;
 }
 
@@ -88,12 +104,11 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   uint64_t key_sha1[2];
   SHA1ForKey(key, key_sha1);
 
-  // TODO: Evict here
+  maybeEvict(cache, data_len);
 
   DCCacheLine_t *line_to_replace = findBestLineToWriteKeyTo(cache, key_sha1);
   if (line_to_replace->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
-    // We need to get rid of the old line
-    removeFileForLine(cache, line_to_replace);
+    removeLine(cache, line_to_replace);
   }
 
   // Set the line state
@@ -102,6 +117,9 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   line_to_replace->key_sha1[1] = key_sha1[1];
   line_to_replace->size_in_bytes = data_len;
   line_to_replace->flags = 0; // We currently don't have any flags
+  
+  // Increment the cache size
+  cache->current_size_in_bytes += data_len;
 
   // Save the actual file
   saveDataFileForKey(cache, key_sha1, data, data_len);
@@ -128,6 +146,28 @@ DCData DCLookup(DCCache cache, char *key) {
   return readDataFileForKey(cache, key_sha1);
 }
 
+void DCEvictToSize(DCCache cache, uint64_t allowed_bytes) {
+  // We don't have evict if we are already below allowed_bytes
+  if (cache->current_size_in_bytes <= allowed_bytes) {
+    return;
+  }
+
+  LineSortable_t *sortables = lineSortablesFromOldestToNewest(cache);
+  //Sort {line_pos, last_access_time_in_ms_from_epoch} by last_access_time_in_ms_from_epoch asc
+    // Keep deleting until we're under allowed_bytes
+  for (int i=0; i < cache->header.num_lines; i++) {
+    // We've hit the target size; we're done
+    if (cache->current_size_in_bytes <= allowed_bytes) {
+      break;
+    }
+
+    // Otherwise let's cheap lopping lines out of the cache
+    removeLine(cache, sortables[i].line);
+  }
+
+  free(sortables);
+}
+
 void DCDataFree(DCData data) {
   free(data->data);
   free(data);
@@ -141,8 +181,9 @@ void DCPrint(DCCache cache) {
   printf("***PRINTING CACHE DATA***\n");
   printf("\tDirectory Path: %s\n", cache->directory_path);
   printf("\tHeader num_lines: %d\n", cache->header.num_lines);
-  printf("\tHeader evict_limit_in_bytes: %d\n", cache->header.evict_limit_in_bytes);
+  printf("\tHeader max_bytes: %llu\n", cache->header.max_bytes);
   printf("\tfd: %d\n", cache->fd);
+  printf("\tcurrent_size_in_bytes: %llu\n", cache->current_size_in_bytes);
   printf("\tlines address: %llx\n", (uint64_t) cache->lines);
   printf("\tmmap_start address: %llx\n", (uint64_t) cache->mmap_start);
   for (uint32_t i=0; i < cache->header.num_lines; i++) {
@@ -166,12 +207,11 @@ static void computeCachePath(char *cache_directory_path, char *dest, int dest_le
   sprintf(dest, "%s/%s", cache_directory_path, CACHE_FN);
 }
 
-static void createDataFile(char *file_path, uint32_t num_lines) {
+static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes) {
   FILE *outfile = fopen(file_path, "w");
 
   // Create the header
-  // TODO: FIGURE OUT evict_limit_in_bytes
-  DCCacheHeader_t header = {.num_lines=num_lines, .evict_limit_in_bytes=0};
+  DCCacheHeader_t header = {.num_lines=num_lines, .max_bytes=max_bytes};
   fwrite(&header, sizeof(DCCacheHeader_t), 1, outfile);
 
   // Create the empty lines
@@ -189,6 +229,18 @@ static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[
   for (int i=0; i < NUM_LOOKUP_INDICIES; i++) {
     indicies[i] = key_in_32_bit_chunks[i] % num_lines;
   }
+}
+
+static void removeLine(DCCache cache, DCCacheLine_t *line) {
+  cache->current_size_in_bytes -= line->size_in_bytes;
+  removeFileForLine(cache, line);
+  
+  // Zero the line (is bzero faster?)
+  line->last_access_time_in_ms_from_epoch = UNUSED_LAST_ACCESS_TIME;
+  line->key_sha1[0] = 0;
+  line->key_sha1[1] = 0;
+  line->size_in_bytes = 0;
+  line->flags = 0;
 }
 
 // Remove the file associated with this line
@@ -217,7 +269,40 @@ static uint64_t currentTimeInMSFromEpoch() {
   return ((uint64_t) (tv.tv_sec)) * 1000 +  ((uint64_t) (tv.tv_usec/1000));
 }
 
+static void recomputeCacheSizeFromLines(DCCache cache) {
+  uint64_t total_size_in_bytes = 0;
+  uint32_t num_lines = cache->header.num_lines; //Cache this here since it's in the comparison
+  for (int i=0; i < num_lines; i++) {
+    total_size_in_bytes += cache->lines[i].size_in_bytes;
+  }
+  cache->current_size_in_bytes = total_size_in_bytes;
+}
+
+/* Evict the contents of the of the cache if the combined size of the current data and the proposed
+ * element to be inserted is greater than the cache size.
+ */
+static void maybeEvict(DCCache cache, uint64_t proposed_increase_bytes) {
+  // Never evict if eviction is turned off
+  if (cache->header.max_bytes == 0) {
+    return;
+  }
+
+  // There's enough space for both the current data and the proposed increase
+  if ((cache->current_size_in_bytes + proposed_increase_bytes) < cache->header.max_bytes) {
+    return;
+  }
+  
+  // Ok, we have to evict. After the insertion we want the size to be:
+  //   max_bytes * EVICT_TO_THIS_RATIO
+  // So we need to decrease that number by proposed_increase_bytes
+  uint64_t post_increase_desired_size = cache->header.max_bytes * EVICT_TO_THIS_RATIO;
+  uint64_t current_desired_size = post_increase_desired_size - proposed_increase_bytes;
+  DCEvictToSize(cache, current_desired_size);
+}
+
+
 /***DCAdd Helpers***/
+
 
 /* Try to determine the best line to save the data to. The best one is based at look at all the
  * indicies in the associative set and picking either:
@@ -309,4 +394,30 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
   fclose(infile);
 
   return returnme;
+}
+
+
+/***EVICTION HELPERS***/
+
+LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache) {
+  int num_lines = cache->header.num_lines;
+  LineSortable_t *sortables = calloc(cache->header.num_lines, sizeof(LineSortable_t));
+
+  // Construct the sortables
+  for (int i=0; i < num_lines; i++) {
+    sortables[i].line_idx = i;
+    sortables[i].line = cache->lines + i;
+    sortables[i].last_access_time_in_ms_from_epoch = cache->lines[i].last_access_time_in_ms_from_epoch;
+  }
+
+  // Sort the sortables (what a novel idea)
+  qsort(sortables, num_lines, sizeof(LineSortable_t), sortableCompareFunc);
+
+  return sortables;
+}
+
+static int sortableCompareFunc(const void *a, const void *b) {
+  LineSortable_t *left = (LineSortable_t *) a;
+  LineSortable_t *right = (LineSortable_t *) b;
+  return left->last_access_time_in_ms_from_epoch - right->last_access_time_in_ms_from_epoch;
 }
