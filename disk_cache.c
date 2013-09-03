@@ -6,6 +6,7 @@
 
 #include <fcntl.h>>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <strings.h>
 #include <unistd.h>
@@ -32,6 +33,7 @@ typedef struct {
 static size_t computeMaxFilePathSize(char *cache_directory_path);
 static void computeCachePath(char *cache_directory_path, char *dest, int dest_len);
 static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes);
+static void createSubDirs(char *cache_directory_path);
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines);
 static void SHA1ForKey(char *key, uint64_t sha1[2]);
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest);
@@ -62,6 +64,7 @@ DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_byte
   char file_path[file_path_size];
   computeCachePath(cache_directory_path, file_path, file_path_size);
   createDataFile(file_path, num_lines, max_bytes);
+  createSubDirs(cache_directory_path);
 
   return DCLoad(cache_directory_path);
 }
@@ -224,6 +227,16 @@ static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_byt
   fclose(outfile);
 }
 
+
+// We want to create create subdirs from 00 to FF
+static void createSubDirs(char *cache_directory_path) {
+  char subdir_path[strlen(cache_directory_path) + 16];
+  for (int i=0; i < 256; i++) {
+    sprintf(subdir_path, "%s/%02x", cache_directory_path, i);
+    mkdir(subdir_path, 0777);
+  }
+}
+
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines) {
   uint32_t *key_in_32_bit_chunks = (uint32_t*) key_sha1;
   for (int i=0; i < NUM_LOOKUP_INDICIES; i++) {
@@ -259,8 +272,8 @@ static void SHA1ForKey(char *key, uint64_t sha1[2]) {
 }
 
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest) {
-  //TODO: USE SUBDIRECTORIES
-  sprintf(dest, "%s/%llx%llx.cache_data", cache->directory_path, sha1[0], sha1[1]);
+  uint8_t subdir = sha1[0] / 65536 / 65536 / 65536 / 256; // Use division to be byte order agnostic
+  sprintf(dest, "%s/%02x/%016llx%016llx.cache_data", cache->directory_path, subdir, sha1[0], sha1[1]);
 }
 
 static uint64_t currentTimeInMSFromEpoch() {
