@@ -85,7 +85,7 @@ DCCache DCLoad(char *cache_directory_path) {
   size_t lines_start_offset = sizeof(DCCacheHeader_t); // The lines starts after the header
   size_t lines_size = cache->header.num_lines * sizeof(DCCacheLine_t);
   size_t total_file_size = lines_start_offset + lines_size;
-  cache->mmap_start = mmap(0, total_file_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FILE, cache->fd, 0);
+  cache->mmap_start = mmap(0, total_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, cache->fd, 0);
   if (cache->mmap_start == MAP_FAILED) {
     fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size, 
             strerror(errno));
