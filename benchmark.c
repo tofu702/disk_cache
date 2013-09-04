@@ -32,7 +32,7 @@ double standardBenchmark(int cache_size, int max_bytes, int num_adds, int num_ge
   // Setup
   for (int i=0; i < num_adds; i++) {
     computeKey(i, keys[i]);
-    data[i] = dataForKeyNum(i, max_bytes);
+    data[i] = dataForKeyNum(i, max_file_size);
   }
   mkdir(DIR_PATH, 0777);
 
@@ -42,7 +42,7 @@ double standardBenchmark(int cache_size, int max_bytes, int num_adds, int num_ge
   end_of_make_time = fTime();
   
   for(int i=0; i < num_adds; i++) {
-    DCAdd(cache, keys[i], data[i], max_bytes);
+    DCAdd(cache, keys[i], data[i], max_file_size);
   }
 
   end_of_add_time = fTime();
