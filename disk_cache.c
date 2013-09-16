@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <fcntl.h>>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -68,6 +68,8 @@ DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_byte
 
   return DCLoad(cache_directory_path);
 }
+
+//TODO: Implement a LOAD or Make function 
 
 DCCache DCLoad(char *cache_directory_path) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
