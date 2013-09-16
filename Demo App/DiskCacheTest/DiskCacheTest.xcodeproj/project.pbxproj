@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1850A8E917E7076600AD073A /* DCDiskCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8E817E7076600AD073A /* DCDiskCache.m */; };
+		1850A8ED17E7079C00AD073A /* disk_cache.c in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8EB17E7079C00AD073A /* disk_cache.c */; };
+		1850A8F017E707C000AD073A /* sha1.c in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8EE17E707C000AD073A /* sha1.c */; };
 		189987F417DC7B3E00AB30FF /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 189987F317DC7B3E00AB30FF /* UIKit.framework */; };
 		189987F617DC7B3E00AB30FF /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 189987F517DC7B3E00AB30FF /* Foundation.framework */; };
 		189987F817DC7B3E00AB30FF /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 189987F717DC7B3E00AB30FF /* CoreGraphics.framework */; };
@@ -22,6 +25,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1850A8E717E7076600AD073A /* DCDiskCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DCDiskCache.h; path = ../../../iOS/Classes/DCDiskCache.h; sourceTree = "<group>"; };
+		1850A8E817E7076600AD073A /* DCDiskCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DCDiskCache.m; path = ../../../iOS/Classes/DCDiskCache.m; sourceTree = "<group>"; };
+		1850A8EB17E7079C00AD073A /* disk_cache.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = disk_cache.c; path = ../../../disk_cache.c; sourceTree = "<group>"; };
+		1850A8EC17E7079C00AD073A /* disk_cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = disk_cache.h; path = ../../../disk_cache.h; sourceTree = "<group>"; };
+		1850A8EE17E707C000AD073A /* sha1.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha1.c; path = ../../../sha1/sha1.c; sourceTree = "<group>"; };
+		1850A8EF17E707C000AD073A /* sha1.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sha1.h; path = ../../../sha1/sha1.h; sourceTree = "<group>"; };
 		189987F017DC7B3E00AB30FF /* DiskCacheTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DiskCacheTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		189987F317DC7B3E00AB30FF /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		189987F517DC7B3E00AB30FF /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -56,10 +65,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1850A8EA17E7076F00AD073A /* DiskCache */ = {
+			isa = PBXGroup;
+			children = (
+				1850A8EE17E707C000AD073A /* sha1.c */,
+				1850A8EF17E707C000AD073A /* sha1.h */,
+				1850A8EB17E7079C00AD073A /* disk_cache.c */,
+				1850A8EC17E7079C00AD073A /* disk_cache.h */,
+				1850A8E717E7076600AD073A /* DCDiskCache.h */,
+				1850A8E817E7076600AD073A /* DCDiskCache.m */,
+			);
+			name = DiskCache;
+			path = DiskCacheTest;
+			sourceTree = "<group>";
+		};
 		189987E717DC7B3E00AB30FF = {
 			isa = PBXGroup;
 			children = (
 				189987F917DC7B3E00AB30FF /* DiskCacheTest */,
+				1850A8EA17E7076F00AD073A /* DiskCache */,
 				189987F217DC7B3E00AB30FF /* Frameworks */,
 				189987F117DC7B3E00AB30FF /* Products */,
 			);
@@ -182,6 +206,9 @@
 				1899880417DC7B3E00AB30FF /* AppDelegate.m in Sources */,
 				1899881017DC7B3E00AB30FF /* ViewController.m in Sources */,
 				1899881817DD867600AB30FF /* ImageCrawler.m in Sources */,
+				1850A8E917E7076600AD073A /* DCDiskCache.m in Sources */,
+				1850A8ED17E7079C00AD073A /* disk_cache.c in Sources */,
+				1850A8F017E707C000AD073A /* sha1.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,6 +331,7 @@
 				1899881517DC7B3E00AB30FF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

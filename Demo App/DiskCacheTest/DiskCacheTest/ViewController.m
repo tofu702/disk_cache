@@ -71,6 +71,7 @@
 - (IBAction)startFetch {
   self.crawler = [[ImageCrawler alloc] initWithImagePageURL:self.urlTextField.text];
   [self.crawler fetchImagePageAndParseImageURLs];
+  [self.crawler bulkAsyncFetchImagesWithSelector:@selector(imageFetchCallbackWithURL:data:) target:self];
 }
 
 - (IBAction)startRetrievalTest {
@@ -86,7 +87,7 @@
 #pragma Callbacks
 
 - (void)imageFetchCallbackWithURL:(NSString *)url data:(NSData *)data {
-  
+  NSLog(@"Fetched image: %@ of len: %d", url, [data length]);
 }
 
 @end

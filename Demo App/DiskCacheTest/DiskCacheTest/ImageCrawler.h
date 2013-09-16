@@ -25,7 +25,12 @@
  */
 - (void)fetchImagePageAndParseImageURLs;
 
-
+/**
+ * Do a bulk, parallel async fetch of the images at the urls that were previously retrieved
+ * using fetchImagePageAndParseImageURLs. The selector should take url as the first argument
+ * and data as the second
+ */
+- (void)bulkAsyncFetchImagesWithSelector:(SEL)aSelector target:(id)target;
 
 
 @end

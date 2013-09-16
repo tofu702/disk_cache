@@ -11,6 +11,7 @@
 @interface ImageCrawler ()
 
 @property (nonatomic) NSString *baseURL;
+@property (nonatomic) NSOperationQueue *opQueue;
 
 - (NSData *)fetchDataFromURL:(NSString *) url;
 - (NSArray *)findURLsInString:(NSString *) s;
@@ -29,6 +30,7 @@
   self = [super init];
   if (self) {
     self.imagePageURL = aImagePageURL;
+    self.opQueue = [[NSOperationQueue alloc] init];
   }
   return self;
 }
@@ -43,6 +45,24 @@
                     otherButtonTitles:nil] show];
   NSString *dataAsString = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
   self.imageFileURLS = [self findURLsInString:dataAsString];
+}
+
+
+- (void)bulkAsyncFetchImagesWithSelector:(SEL)aSelector target:(id)target {
+  void (^completionHandlerBlock)(NSURLResponse *response, NSData *data, NSError *err) =
+    ^(NSURLResponse *response, NSData *data, NSError *err){
+      [target performSelector:aSelector
+                   withObject:[response URL]
+                   withObject:data];
+  };
+  for (NSString *url_str in self.imageFileURLS) {
+    NSLog(@"Starting selector for %@", url_str);
+    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url_str]];
+    
+    [NSURLConnection sendAsynchronousRequest:request
+                                       queue:self.opQueue
+                           completionHandler:completionHandlerBlock];
+  }
 }
 
 
