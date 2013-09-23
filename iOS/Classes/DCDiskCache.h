@@ -23,14 +23,32 @@ FOUNDATION_EXPORT const NSUInteger DC_NO_CACHE_LIMIT_MAX_BYTES;
 
 @interface DCDiskCache : NSObject
 
+
 /**
- * Load a previously stored cache from the provided path, if one does not exist, create it and return it
+ * A convenience classmethod to load a previously stored cache from the default path. If one does not exist,
+ * create it and return it. Default values are picked for path, numLines and maxBytes.
+ * NOTE: THIS IS NOT A SINGLETON! Calling this method multiple times will return multiple distinct cache 
+ * objects.
  */
-+ (id)loadCacheWithPath:(NSString *)cachePath;
++ (id)loadOrCreateCacheWithDefaultPath;
+
+/**
+ * A convenience classmethod to load a previous stored cache from the provide path. If one does not exist,
+ * create it with the provided number of line and maxBytes.
+ * NOTE: THIS IS NOT A SINGLETON! Calling this method multiple times will return multiple distinct cache
+ * objects.
+ * NOTE: numLines and maxBytes are only used if creating a new disk cache
+ */
++ (id)loadOrCreateCacheWithPath:(NSString *)cachePath
+                desiredNumLines:(NSUInteger)numLines
+                desiredMaxBytes:(NSUInteger)maxBytes;
 
 
 /**
  * Designated Initializer
+ * Load a disk cache at the desired path if one exists, if none does exist, create a new one with the
+ * provided line count and max bytes.
+ * Arguments:
  * cachePath: A valid path to a directory that the disk cache should use, this directory should be empty
  * numLines: The number of lines (the maximum number of entries) in the cache
  * maxBytes: The maximum total size of the cache, specify DC_NO_CACHE_LIMIT_MAX_BYTES
