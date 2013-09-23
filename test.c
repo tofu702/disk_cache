@@ -117,14 +117,18 @@ int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
 }
 
 int evictionTest() {
-  DCCache cache = DCMake("/tmp", 64, 11);
+  DCCache cache = DCMake(WORKING_PATH, 64, 11);
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
   usleep(2000);
   DCAdd(cache, "key2", (uint8_t *)"v2", 3);
-  // Both Keys should be here:88
+  usleep(2000);
+  // Both Keys should be here
   DCData r1 = DCLookup(cache, "key1");
+  usleep(2000);
   DCData r2 = DCLookup(cache, "key2");
   DCCloseAndFree(cache);
+
+  //At this point key2 should have a newer access time than key1
 
   if (!r1 || !r2) {
     printf("Test Failure, both r1 & r2 should have existed\n");
@@ -133,12 +137,16 @@ int evictionTest() {
   DCDataFree(r1);
   DCDataFree(r2);
 
-  DCCache cache2 = DCLoad("/tmp");
+  DCCache cache2 = DCLoad(WORKING_PATH);
   usleep(2000);
   // Will trigger an eviction down to size 8-5 = 3 (IE: nuke both val1)
   DCAdd(cache2, "key3", (uint8_t *)"v3", 3); 
+  usleep(2000);
+
   r1 = DCLookup(cache2, "key1");
+  usleep(2000);
   r2 = DCLookup(cache2, "key2");
+  usleep(2000);
   DCData r3 = DCLookup(cache2, "key3");
 
 
@@ -154,6 +162,8 @@ int evictionTest() {
   usleep(2000);
   // Will trigger an eviction down to size 3 (IE: nukes v2)
   DCAdd(cache2, "key4", (uint8_t *)"val4", 5);
+
+  // We don't need sleeps here because we're done with adds
   r1 = DCLookup(cache2, "key1");
   r2 = DCLookup(cache2, "key2");
   r3 = DCLookup(cache2, "key3");
