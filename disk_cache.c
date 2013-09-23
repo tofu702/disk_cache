@@ -78,6 +78,11 @@ DCCache DCLoad(char *cache_directory_path) {
   
   DCCache cache = calloc(1, sizeof(DCCache_t));
   cache->fd = open(file_path, O_RDWR);
+
+  // We failed to open it; return NULL
+  if (cache->fd < 0) {
+    return NULL;
+  }
   cache->directory_path = strdup(cache_directory_path); // cache_directory_path could be freed
 
   //Read in the header
@@ -91,7 +96,7 @@ DCCache DCLoad(char *cache_directory_path) {
   if (cache->mmap_start == MAP_FAILED) {
     fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size, 
             strerror(errno));
-    assert(0); // TODO: This should never happen, but fail more gracefully
+    return NULL; // If it's corrupt, we it might as well not exist
   }
   cache->lines = cache->mmap_start + lines_start_offset;
   recomputeCacheSizeFromLines(cache);

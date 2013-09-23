@@ -43,7 +43,7 @@ typedef struct {
   DCCacheHeader_t header;
   DCCacheLine_t *lines;
   char *directory_path;
-  uint32_t fd;
+  int fd;
   uint64_t current_size_in_bytes;
   void *mmap_start; 
 } DCCache_t;
@@ -64,8 +64,17 @@ typedef DCCache_t *DCCache;
  */
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_bytes);
 
+/* Load a pre-existing disk cache. If the disk cache doesn't exist or is corrupt, this function
+ * will return NULL.
+ * Arguments:
+ * -cache_directory_path: A directory where the cache data is stored
+ */
 DCCache DCLoad(char *cache_directory_path);
 
+/* Free all state associated with a cache and close all open files that it is using.
+ * Arguments:
+ * -cache: A DCCache instance
+ */ 
 void DCCloseAndFree(DCCache cache);
 
 void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
