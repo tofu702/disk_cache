@@ -10,6 +10,8 @@
 
 @interface ViewController ()
 
+
+
 - (void)imageFetchCallbackWithURL:(NSString *)url data:(NSData *)data;
 
 @end
@@ -20,6 +22,7 @@
 {
     [super viewDidLoad];
   [self attachKeyboardAccessoryViews];
+  self.cache = [DCDiskCache loadOrCreateCacheWithDefaultPath];
 }
 
 - (void)didReceiveMemoryWarning
@@ -86,8 +89,10 @@
 #pragma mark -
 #pragma Callbacks
 
-- (void)imageFetchCallbackWithURL:(NSString *)url data:(NSData *)data {
-  NSLog(@"Fetched image: %@ of len: %d", url, [data length]);
+- (void)imageFetchCallbackWithURL:(NSURL*)url data:(NSData *)data {
+  NSString *str_url =[url absoluteString];
+  NSLog(@"Fetched image: %@ of len: %d/%@", url, [data length], str_url);
+  [self.cache setItem:data forKey: str_url];
 }
 
 @end

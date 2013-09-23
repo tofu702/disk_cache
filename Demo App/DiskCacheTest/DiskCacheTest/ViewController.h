@@ -8,6 +8,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "DCDiskCache.h"
 #import "ImageCrawler.h"
 
 @interface ViewController : UIViewController
@@ -21,6 +22,7 @@
 
 //Other Properties
 @property (nonatomic) ImageCrawler *crawler;
+@property (nonatomic) DCDiskCache *cache;
 
 
 - (IBAction)startFetch;
