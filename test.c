@@ -1,15 +1,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/stat.h>
 #include <unistd.h>
+
 
 #include "disk_cache.h"
 
+#define WORKING_PATH  "/tmp/dc_test"
+#define NON_EXISTANT_PATH WORKING_PATH "/non_existant"
 
 int createTest() {
-  DCCache cache = DCMake("/tmp", 16, 0);
+  DCCache no_cache = DCLoad(NON_EXISTANT_PATH);
+  if (no_cache != NULL) {
+    printf("Loaded non-existant cache, createTest failed\n");
+    return 1;
+  }
+  
+  DCCache cache = DCMake(WORKING_PATH, 16, 0);
   DCCloseAndFree(cache);
   printf("createTest Complete");
+
+  // If it didn't crash here, we'll assume it worked
   return 0;
 }
 
@@ -17,14 +29,14 @@ int simpleAddTest() {
   char *test_key = "TEST KEY";
   char *test_val = "TEST VAL";
 
-  DCCache cache = DCMake("/tmp", 16, 0);
+  DCCache cache = DCMake(WORKING_PATH, 16, 0);
   DCCloseAndFree(cache);
 
-  DCCache cache2 = DCLoad("/tmp");
+  DCCache cache2 = DCLoad(WORKING_PATH);
   DCAdd(cache2, test_key, (uint8_t *)test_val, strlen(test_val) + 1); //+1 to capture the \0
   DCCloseAndFree(cache2);
 
-  DCCache cache3 = DCLoad("/tmp");
+  DCCache cache3 = DCLoad(WORKING_PATH);
   DCData result = DCLookup(cache3, test_key);
   DCCloseAndFree(cache3);
 
@@ -75,7 +87,7 @@ int addTestWithOverwrites() {
 }
 
 int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
-  DCCache cache = DCMake("/tmp", 2, 0);
+  DCCache cache = DCMake(WORKING_PATH, 2, 0);
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
   DCAdd(cache, "key2", (uint8_t *)"val2", 5);
   usleep(2000);
@@ -190,10 +202,17 @@ int evictionTest() {
 }
 
 int main(int argc, char **argv) {
+  //SETUP
+  mkdir(WORKING_PATH, 0777);
+
+  // BEGIN TESTS
   createTest();
   simpleAddTest();
   addTestWithOverwrites();
   testLookupSetsAccessTimeAndReplacesEarliestAccessed();
   evictionTest();
+
+  //CLEANUP: TODO, factor recursiveDeletePath into a common helper
+
   return 0;
 }
