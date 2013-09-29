@@ -25,8 +25,9 @@
 @property (nonatomic) DCDiskCache *cache;
 
 
-- (IBAction)startFetch;
+- (IBAction)startFullFetch;
+- (IBAction)crawlOnly;
 - (IBAction)startRetrievalTest;
-- (IBAction)clearCache;
+- (IBAction)recreateCache;
 
 @end
