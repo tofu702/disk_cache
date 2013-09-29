@@ -172,7 +172,12 @@ void DCEvictToSize(DCCache cache, uint64_t allowed_bytes) {
     }
 
     // Otherwise let's cheap lopping lines out of the cache
-    removeLine(cache, sortables[i].line);
+    DCCacheLine_t *line = sortables[i].line;
+
+    //Only remove lines that require it
+    if (line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+      removeLine(cache, line);
+    }
   }
 
   free(sortables);
@@ -422,6 +427,7 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
 LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache) {
   int num_lines = cache->header.num_lines;
   LineSortable_t *sortables = calloc(cache->header.num_lines, sizeof(LineSortable_t));
+  // TODO: Only sort unused lines
 
   // Construct the sortables
   for (int i=0; i < num_lines; i++) {
