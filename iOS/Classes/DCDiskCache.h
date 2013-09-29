@@ -23,6 +23,8 @@ FOUNDATION_EXPORT const NSUInteger DC_NO_CACHE_LIMIT_MAX_BYTES;
 
 @interface DCDiskCache : NSObject
 
+@property (readonly) NSString *cachePath;
+
 
 /**
  * A convenience classmethod to load a previously stored cache from the default path. If one does not exist,
@@ -43,6 +45,7 @@ FOUNDATION_EXPORT const NSUInteger DC_NO_CACHE_LIMIT_MAX_BYTES;
                 desiredNumLines:(NSUInteger)numLines
                 desiredMaxBytes:(NSUInteger)maxBytes;
 
++ (NSString *)defaultCachePath;
 
 /**
  * Designated Initializer
@@ -54,8 +57,6 @@ FOUNDATION_EXPORT const NSUInteger DC_NO_CACHE_LIMIT_MAX_BYTES;
  * maxBytes: The maximum total size of the cache, specify DC_NO_CACHE_LIMIT_MAX_BYTES
  */
 - (id)initWithPath:(NSString *)cachePath numLines:(NSUInteger)numLines maxBytes:(NSUInteger) maxBytes;
-
-
 
 /**
  *

@@ -16,13 +16,15 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
 @interface DCDiskCache ()
 
 @property DCCache cache;
-
-+ (NSString *)defaultCachePath;
+@property (nonatomic) NSLock *lock;
 
 @end
 
 @implementation DCDiskCache
 
+
+#pragma mark -
+#pragma mark Class Methods
 
 + (id)loadOrCreateCacheWithDefaultPath {
   NSString *cachePath = [DCDiskCache defaultCachePath];
@@ -37,6 +39,24 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
                 desiredMaxBytes:(NSUInteger)maxBytes {
   return [[DCDiskCache alloc] initWithPath:cachePath numLines:numLines maxBytes:maxBytes];
 }
+
++ (NSString *)defaultCachePath {
+  NSFileManager *filemanager = [NSFileManager defaultManager];
+  NSArray *arr = [filemanager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask];
+  
+  if ([arr count] == 0) {
+    return nil;
+  }
+  
+  NSURL *baseURL = [arr objectAtIndex:0];
+  NSURL *finalURL = [baseURL URLByAppendingPathComponent:@"default_DCDiskCache"];
+  return [finalURL path];
+}
+
+
+#pragma mark -
+#pragma mark Instance Methods
+
 
 - (id)initWithPath:(NSString *)cachePath numLines:(NSUInteger)numLines maxBytes:(NSUInteger) maxBytes {
   self = [super init];
@@ -53,6 +73,7 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
                           (uint32_t)numLines,
                           (uint64_t)maxBytes);
     }
+    self.lock = [[NSLock alloc] init];
   }
   return self;
 }
@@ -62,16 +83,19 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
 }
 
 - (void)setItem:(id<NSCoding>)item forKey:(NSString*)key {
+  [self.lock lock];
   NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:item];
   DCAdd(self.cache,
         (char *)[key cStringUsingEncoding:NSASCIIStringEncoding],
         (uint8_t *) [archivedData bytes],
         (uint64_t)[archivedData length]);
-  
+  [self.lock unlock];
 }
 
 - (id)itemForKey:(NSString *)key {
+  [self.lock lock];
   DCData foundEntry = DCLookup(self.cache, (char *)[key cStringUsingEncoding:NSASCIIStringEncoding]);
+  [self.lock unlock];
   if (!foundEntry) {
     return nil;
   }
@@ -86,21 +110,10 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
 }
 
 
-#pragma mark -
-#pragma mark Private Helpers
-
-
-+ (NSString *)defaultCachePath {
-  NSFileManager *filemanager = [NSFileManager defaultManager];
-  NSArray *arr = [filemanager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask];
-  
-  if ([arr count] == 0) {
-    return nil;
-  }
-
-  NSURL *baseURL = [arr objectAtIndex:0];
-  NSURL *finalURL = [baseURL URLByAppendingPathComponent:@"default_DCDiskCache"];
-  return [finalURL path];
+// Implement the property
+- (NSString *)cachePath {
+  return [NSString stringWithFormat:@"%s", self.cache->directory_path];
 }
+
 
 @end
