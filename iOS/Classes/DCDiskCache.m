@@ -101,6 +101,7 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
   }
   
   NSData *data = [NSData dataWithBytes:foundEntry->data length:foundEntry->data_len];
+  DCDataFree(foundEntry);
   return [NSKeyedUnarchiver unarchiveObjectWithData:data];
 }
 
