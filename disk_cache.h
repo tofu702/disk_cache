@@ -81,6 +81,13 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
 
 DCData DCLookup(DCCache cache, char *key);
 
+/* If the key exists in the cache, remove it
+ * Arguments:
+ * -cache: A DCCache instance
+ * -key: A key to remove
+ */
+void DCRemove(DCCache cache, char *key);
+
 /* Evict to the specified number of bytes. This normally isn't needed but could be done to clear
  * a lot of space in the cache before adding a lot of elements. Oldest elements are always evicted
  * first.

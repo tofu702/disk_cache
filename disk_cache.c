@@ -75,12 +75,13 @@ DCCache DCLoad(char *cache_directory_path) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
   char file_path[file_path_size];
   computeCachePath(cache_directory_path, file_path, file_path_size);
-  
+
   DCCache cache = calloc(1, sizeof(DCCache_t));
   cache->fd = open(file_path, O_RDWR);
 
   // We failed to open it; return NULL
   if (cache->fd < 0) {
+    free(cache);
     return NULL;
   }
   cache->directory_path = strdup(cache_directory_path); // cache_directory_path could be freed
@@ -114,12 +115,18 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   uint64_t key_sha1[2];
   SHA1ForKey(key, key_sha1);
 
-  maybeEvict(cache, data_len);
-
-  DCCacheLine_t *line_to_replace = findBestLineToWriteKeyTo(cache, key_sha1);
-  if (line_to_replace->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+  // Remove the line if already exists, otherwise find the best candidate and remove it
+  DCCacheLine_t *line_to_replace = findLineThatMatchesKey(cache, key_sha1);
+  if (line_to_replace) {
     removeLine(cache, line_to_replace);
+  } else {
+    line_to_replace = findBestLineToWriteKeyTo(cache, key_sha1);
+    if (line_to_replace->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+      removeLine(cache, line_to_replace);
+    }
   }
+
+  maybeEvict(cache, data_len);
 
   // Set the line state
   line_to_replace->last_access_time_in_ms_from_epoch = currentTimeInMSFromEpoch();
@@ -127,12 +134,25 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   line_to_replace->key_sha1[1] = key_sha1[1];
   line_to_replace->size_in_bytes = data_len;
   line_to_replace->flags = 0; // We currently don't have any flags
-  
+
   // Increment the cache size
   cache->current_size_in_bytes += data_len;
 
   // Save the actual file
   saveDataFileForKey(cache, key_sha1, data, data_len);
+}
+
+void DCRemove(DCCache cache, char *key) {
+  uint64_t key_sha1[2];
+  DCCacheLine_t *line;
+
+  SHA1ForKey(key, key_sha1);
+
+  line = findLineThatMatchesKey(cache, key_sha1);
+
+  if (line) {
+    removeLine(cache, line);
+  }
 }
 
 DCData DCLookup(DCCache cache, char *key) {
