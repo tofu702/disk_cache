@@ -56,7 +56,6 @@
                    withObject:data];
   };
   for (NSString *url_str in self.imageFileURLS) {
-    NSLog(@"Starting selector for %@", url_str);
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url_str]];
     
     [NSURLConnection sendAsynchronousRequest:request

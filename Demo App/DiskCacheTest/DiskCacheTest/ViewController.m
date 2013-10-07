@@ -96,8 +96,10 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
      // Pick a random URL, and try to retrieve it
     NSString *key = [self.crawler.imageFileURLS objectAtIndex:idx];
     
-    if([self.cache itemForKey:key]) {
-      num_hits ++;
+    @autoreleasepool {
+      if([self.cache itemForKey:key]) {
+        num_hits ++;
+      }
     }
   }
   
