@@ -7,13 +7,15 @@
 //
 
 #import "ViewController.h"
+#import "DCDiskCacheDebugInfo.h"
 
 @interface ViewController ()
 
 @property (nonatomic, assign) NSUInteger totalRetrievals;
 
 - (void)imageFetchCallbackWithURL:(NSString *)url data:(NSData *)data;
-- (void)setStringInTextBlock:(NSString *) s;
+- (void)setStringInTextView:(NSArray *) arrayWithStringAndTextView;
+
 @end
 
 @implementation ViewController
@@ -25,6 +27,7 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
     [super viewDidLoad];
   [self attachKeyboardAccessoryViews];
   self.cache = [DCDiskCache loadOrCreateCacheWithDefaultPath];
+  [self showStats];
 }
 
 - (void)didReceiveMemoryWarning
@@ -116,6 +119,7 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
                                    delta_micros,
                                    delta_micros / NUM_RETRIEVALS,
                                    (num_hits == 0) ? 0 : delta_micros / num_hits];
+  [self showStats];
 }
 
 - (IBAction)recreateCache {
@@ -129,6 +133,7 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
   self.cache = [DCDiskCache loadOrCreateCacheWithPath:[DCDiskCache defaultCachePath]
                                       desiredNumLines:[self.cacheLinesTextField.text integerValue]
                                       desiredMaxBytes:[self.cacheKBTextField.text integerValue] * 1024];
+  [self showStats];
 }
 
 
@@ -144,14 +149,40 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
                 [self.crawler.imageFileURLS count],
                 url,
                 [data length]];
-  [self performSelector:@selector(setStringInTextBlock:)
+  [self performSelector:@selector(setStringInTextView:)
                onThread:[NSThread mainThread]
-             withObject:s
+             withObject:@[s, self.testSummaryTextView]
           waitUntilDone:NO];
+  [self performSelectorOnMainThread:@selector(showStats)
+                         withObject:nil
+                      waitUntilDone:NO];
 }
 
-- (void)setStringInTextBlock:(NSString *) s{
-  self.testSummaryTextView.text = s;
+
+#pragma mark -
+#pragma mark Helpers
+
+
+- (void)setStringInTextView:(NSArray *) arrayWithStringAndTextView{
+  NSString *s = [arrayWithStringAndTextView objectAtIndex: 0];
+  UITextView * tv = [arrayWithStringAndTextView objectAtIndex: 1];
+  tv.text = s;
 }
+
+- (void) showStats {
+  DCDiskCacheDebugInfo *info = [self.cache getDebugInfo];
+  NSString *s = [NSString stringWithFormat:@"%d items in cache\n"
+                                            "%d MB total size",
+                 info.numItems,
+                 info.currentSizeInBytes/1024/1024];
+  self.cacheStatsTextView.text = s;
+  self.cacheLinesTextField.text = [NSString stringWithFormat:@"%d", info.numLines];
+  self.cacheKBTextField.text = [NSString stringWithFormat:@"%d", info.maxSizeInBytes/1024];
+  [self performSelectorOnMainThread:@selector(setStringInTextView:)
+                         withObject:@[s, self.cacheStatsTextView]
+                      waitUntilDone:NO];
+}
+
+
 
 @end

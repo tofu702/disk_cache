@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		182E175B181D2B3D005F46F1 /* DCDiskCacheDebugInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = 182E175A181D2B3D005F46F1 /* DCDiskCacheDebugInfo.m */; };
 		1850A8E917E7076600AD073A /* DCDiskCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8E817E7076600AD073A /* DCDiskCache.m */; };
 		1850A8ED17E7079C00AD073A /* disk_cache.c in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8EB17E7079C00AD073A /* disk_cache.c */; };
 		1850A8F017E707C000AD073A /* sha1.c in Sources */ = {isa = PBXBuildFile; fileRef = 1850A8EE17E707C000AD073A /* sha1.c */; };
@@ -25,6 +26,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		182E1759181D2B3D005F46F1 /* DCDiskCacheDebugInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DCDiskCacheDebugInfo.h; path = ../../../iOS/Classes/DCDiskCacheDebugInfo.h; sourceTree = "<group>"; };
+		182E175A181D2B3D005F46F1 /* DCDiskCacheDebugInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DCDiskCacheDebugInfo.m; path = ../../../iOS/Classes/DCDiskCacheDebugInfo.m; sourceTree = "<group>"; };
 		1850A8E717E7076600AD073A /* DCDiskCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DCDiskCache.h; path = ../../../iOS/Classes/DCDiskCache.h; sourceTree = "<group>"; };
 		1850A8E817E7076600AD073A /* DCDiskCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DCDiskCache.m; path = ../../../iOS/Classes/DCDiskCache.m; sourceTree = "<group>"; };
 		1850A8EB17E7079C00AD073A /* disk_cache.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = disk_cache.c; path = ../../../disk_cache.c; sourceTree = "<group>"; };
@@ -72,6 +75,8 @@
 				1850A8EF17E707C000AD073A /* sha1.h */,
 				1850A8EB17E7079C00AD073A /* disk_cache.c */,
 				1850A8EC17E7079C00AD073A /* disk_cache.h */,
+				182E1759181D2B3D005F46F1 /* DCDiskCacheDebugInfo.h */,
+				182E175A181D2B3D005F46F1 /* DCDiskCacheDebugInfo.m */,
 				1850A8E717E7076600AD073A /* DCDiskCache.h */,
 				1850A8E817E7076600AD073A /* DCDiskCache.m */,
 			);
@@ -204,6 +209,7 @@
 			files = (
 				1899880017DC7B3E00AB30FF /* main.m in Sources */,
 				1899880417DC7B3E00AB30FF /* AppDelegate.m in Sources */,
+				182E175B181D2B3D005F46F1 /* DCDiskCacheDebugInfo.m in Sources */,
 				1899881017DC7B3E00AB30FF /* ViewController.m in Sources */,
 				1899881817DD867600AB30FF /* ImageCrawler.m in Sources */,
 				1850A8E917E7076600AD073A /* DCDiskCache.m in Sources */,
