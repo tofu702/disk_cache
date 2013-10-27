@@ -104,4 +104,9 @@ void DCDataFree(DCData data);
 /* Print the cache contents to stdout */
 void DCPrint(DCCache cache);
 
+/* How many items are currently stored in the cache. 
+ * NOTE: This is a slow operation and should not be called in production
+ */
+int DCNumItems(DCCache cache);
+
 #endif

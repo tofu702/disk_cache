@@ -233,6 +233,21 @@ void DCPrint(DCCache cache) {
   }
 }
 
+int DCNumItems(DCCache cache) {
+  int items_count = 0;
+
+  for (int i=0; i < cache->header.num_lines; i++) {
+    DCCacheLine_t *line = cache->lines + i;
+    if (line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+      items_count ++;
+    }
+  }
+
+  return items_count;
+}
+
+
+
 /***STATIC HELPERS***/
 static size_t computeMaxFilePathSize(char *cache_directory_path) {
   return FILENAME_MAX_LEN + strlen(cache_directory_path);
@@ -430,7 +445,7 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
   returnme->data_len = ftell(infile);
   fseek(infile, 0, SEEK_SET);
 
-  returnme->data = calloc(returnme->data_len, sizeof(uint8_t));
+  returnme->data = malloc(returnme->data_len * sizeof(uint8_t));
 
   // TODO: Use a less nuclear error handling mechanism
   assert(returnme->data); // Will exit if a null pointer (not enough memory)
