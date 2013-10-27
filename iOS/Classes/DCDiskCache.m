@@ -105,9 +105,20 @@ const NSUInteger DC_DEFAULT_MAX_BYTES = 32*1024*1024;
   return [NSKeyedUnarchiver unarchiveObjectWithData:data];
 }
 
-
 - (void)removeItemForKey:(NSString *)key {
-    //TODO: Implement
+  [self.lock lock];
+  DCRemove(self.cache, (char *)[key cStringUsingEncoding:NSASCIIStringEncoding]);
+  [self.lock unlock];
+}
+
+- (DCDiskCacheDebugInfo *)getDebugInfo {
+  DCDiskCacheDebugInfo *debugInfo = [[DCDiskCacheDebugInfo alloc] init];
+  debugInfo.numLines = self.cache->header.num_lines;
+  debugInfo.numItems = DCNumItems(self.cache);
+  debugInfo.currentSizeInBytes = self.cache->current_size_in_bytes;
+  debugInfo.maxSizeInBytes = self.cache->header.max_bytes;
+  
+  return debugInfo;
 }
 
 
