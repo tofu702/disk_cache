@@ -27,6 +27,7 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
     [super viewDidLoad];
   [self attachKeyboardAccessoryViews];
   self.cache = [DCDiskCache loadOrCreateCacheWithDefaultPath];
+  self.testSummaryTextView.text = @"";
   [self showStats];
 }
 
@@ -111,8 +112,10 @@ static const NSUInteger NUM_RETRIEVALS = 1024;
   NSUInteger delta_micros = delta * 1000*1000;
   
   self.testSummaryTextView.text = [NSString stringWithFormat:
-                                   @"%d hits out of %d retrievals; %f%%;\n"
-                                    "Took %d microsec, %d microsec/retrieval , %d microsec/hit",
+                                   @"%d hits / %d retrievals = %2.2f%%\n"
+                                    "Total Time: %d us\n"
+                                    "Per Retrieval: %d us\n"
+                                    "Per Hit: %d us",
                                    num_hits,
                                    NUM_RETRIEVALS,
                                    (num_hits * 100.0f) / NUM_RETRIEVALS,

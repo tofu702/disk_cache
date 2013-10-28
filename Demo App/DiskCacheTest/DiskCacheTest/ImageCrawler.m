@@ -38,11 +38,11 @@
 - (void)fetchImagePageAndParseImageURLs {
   NSData *data = [self fetchDataFromURL:self.imagePageURL];
   NSString *message = [NSString stringWithFormat:@"%d bytes retrieved", [data length]];
-  [[[UIAlertView alloc] initWithTitle:@"Data Retrieved"
+  /*[[[UIAlertView alloc] initWithTitle:@"Data Retrieved"
                              message:message
                             delegate:nil
                    cancelButtonTitle:@"OK"
-                    otherButtonTitles:nil] show];
+                    otherButtonTitles:nil] show];*/
   NSString *dataAsString = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
   self.imageFileURLS = [self findURLsInString:dataAsString];
 }
@@ -112,7 +112,6 @@
     [results addObject:[self transformURLStringToAbsoluteURL:sub_string]];
   }
   
-  NSLog(@"Matches: %@", results);
   return results;
 }
 
