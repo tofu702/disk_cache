@@ -43,6 +43,7 @@ static void removeFileForLine(DCCache cache, DCCacheLine_t *line);
 static uint64_t currentTimeInMSFromEpoch();
 static void recomputeCacheSizeFromLines(DCCache cache);
 static void maybeEvict(DCCache cache, uint64_t proposed_increase_bytes);
+static inline bool isLineUsed(DCCacheLine_t *line);
 
 //DCAdd Helpers
 static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[2]);
@@ -55,7 +56,6 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]);
 //Evict Helpers
 static LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache, int *num_used_lines);
 static int sortableCompareFunc(const void *a, const void *b);
-static inline bool isLineUsed(DCCacheLine_t *line);
 
 
 /***IMPLEMENTATION OF PUBLIC FUNCTIONS***/
@@ -123,7 +123,7 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
     removeLine(cache, line_to_replace);
   } else {
     line_to_replace = findBestLineToWriteKeyTo(cache, key_sha1);
-    if (line_to_replace->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+    if (isLineUsed(line_to_replace)) {
       removeLine(cache, line_to_replace);
     }
   }
@@ -242,15 +242,13 @@ int DCNumItems(DCCache cache) {
   int items_count = 0;
 
   for (int i=0; i < cache->header.num_lines; i++) {
-    DCCacheLine_t *line = cache->lines + i;
-    if (line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
+    if (isLineUsed(cache->lines + i)) {
       items_count ++;
     }
   }
 
   return items_count;
 }
-
 
 
 /***STATIC HELPERS***/
@@ -408,6 +406,10 @@ static void saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, 
   fclose(outfile);
 }
 
+static inline bool isLineUsed(DCCacheLine_t *line) {
+  return line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME;
+}
+
 
 /***DCLookup Helpers***/
 
@@ -510,8 +512,4 @@ static int sortableCompareFunc(const void *a, const void *b) {
   LineSortable_t *left = (LineSortable_t *) a;
   LineSortable_t *right = (LineSortable_t *) b;
   return left->last_access_time_in_ms_from_epoch - right->last_access_time_in_ms_from_epoch;
-}
-
-static inline bool isLineUsed(DCCacheLine_t *line) {
-  return line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME;
 }
