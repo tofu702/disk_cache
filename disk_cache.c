@@ -433,11 +433,18 @@ static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]
  */
 static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
   DCData returnme;
+  struct stat file_stats;
   char file_path[computeMaxFilePathSize(cache->directory_path)];
   pathForSHA1(cache, key_sha1, file_path);
-  
+
+  // We need to stat the file to figure out it's size
+  if (stat(file_path, &file_stats)) {
+    fprintf(stderr, "Unable to stat cache file '%s'\n", file_path);
+    return NULL;
+  }
+
   FILE *infile = fopen(file_path, "r");
-  
+
   // For some reason we couldn't open the file
   if (!infile) {
     fprintf(stderr, "Unable to open cache file '%s'\n", file_path);
@@ -445,12 +452,7 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
   }
 
   returnme = calloc(1, sizeof(DCData_t));
-  // Determine the file's size, not that this only works up to 2 GB on 32 bit machines
-  // TODO: Change this to fgetpos/fsetpos to support larger files
-  fseek(infile, 0, SEEK_END);
-  returnme->data_len = ftell(infile);
-  fseek(infile, 0, SEEK_SET);
-
+  returnme->data_len = (uint64_t) (file_stats.st_size);
   returnme->data = malloc(returnme->data_len * sizeof(uint8_t));
 
   // TODO: Use a less nuclear error handling mechanism
