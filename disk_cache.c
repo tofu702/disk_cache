@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,8 +53,9 @@ static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]
 static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]);
 
 //Evict Helpers
-static LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache);
+static LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache, int *num_used_lines);
 static int sortableCompareFunc(const void *a, const void *b);
+static inline bool isLineUsed(DCCacheLine_t *line);
 
 
 /***IMPLEMENTATION OF PUBLIC FUNCTIONS***/
@@ -183,15 +185,16 @@ DCData DCLookup(DCCache cache, char *key) {
 }
 
 void DCEvictToSize(DCCache cache, uint64_t allowed_bytes) {
+  int num_used_lines;
   // We don't have evict if we are already below allowed_bytes
   if (cache->current_size_in_bytes <= allowed_bytes) {
     return;
   }
 
-  LineSortable_t *sortables = lineSortablesFromOldestToNewest(cache);
+  LineSortable_t *sortables = lineSortablesFromOldestToNewest(cache, &num_used_lines);
   //Sort {line_pos, last_access_time_in_ms_from_epoch} by last_access_time_in_ms_from_epoch asc
     // Keep deleting until we're under allowed_bytes
-  for (int i=0; i < cache->header.num_lines; i++) {
+  for (int i=0; i < num_used_lines; i++) {
     // We've hit the target size; we're done
     if (cache->current_size_in_bytes <= allowed_bytes) {
       break;
@@ -199,11 +202,7 @@ void DCEvictToSize(DCCache cache, uint64_t allowed_bytes) {
 
     // Otherwise let's cheap lopping lines out of the cache
     DCCacheLine_t *line = sortables[i].line;
-
-    //Only remove lines that require it
-    if (line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME) {
-      removeLine(cache, line);
-    }
+    removeLine(cache, line);
   }
 
   free(sortables);
@@ -455,8 +454,11 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
   returnme->data_len = (uint64_t) (file_stats.st_size);
   returnme->data = malloc(returnme->data_len * sizeof(uint8_t));
 
-  // TODO: Use a less nuclear error handling mechanism
-  assert(returnme->data); // Will exit if a null pointer (not enough memory)
+  if (!returnme->data) {
+    fprintf(stderr, "Cannot allocate %lu bytes of memory to return data for '%s'\n",
+            (unsigned long)returnme->data_len, file_path);
+    return NULL;
+  }
 
   fread(returnme->data, sizeof(uint8_t), returnme->data_len, infile);
   fclose(infile);
@@ -466,21 +468,40 @@ static DCData readDataFileForKey(DCCache cache, uint64_t key_sha1[2]) {
 
 
 /***EVICTION HELPERS***/
+/* Return used lines sorted by last_access_time_in_ms_from_epoch from oldest to newest.
+ * NOTE: The return value is an array of sortables an they must be freed
+ * Arguments:
+ * -cache: A DCCache instance
+ * -num_used_lines: A destination where the number of used lines will be stored
+ * Returns: An array of LineSortable_t's for all lines in the cache
+ */
+LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache, int *num_used_lines) {
+  int num_cache_lines = cache->header.num_lines;
+  *num_used_lines = DCNumItems(cache);
 
-LineSortable_t *lineSortablesFromOldestToNewest(DCCache cache) {
-  int num_lines = cache->header.num_lines;
-  LineSortable_t *sortables = calloc(cache->header.num_lines, sizeof(LineSortable_t));
-  // TODO: Only sort unused lines
+  //Basic idea: We only want to bother with cache lines that are used
+  LineSortable_t *sortables = calloc(*num_used_lines, sizeof(LineSortable_t));
 
-  // Construct the sortables
-  for (int i=0; i < num_lines; i++) {
-    sortables[i].line_idx = i;
-    sortables[i].line = cache->lines + i;
-    sortables[i].last_access_time_in_ms_from_epoch = cache->lines[i].last_access_time_in_ms_from_epoch;
+  // Construct the sortables: Only put in used lines
+  int sortables_added = 0;
+  for (int i=0; i < num_cache_lines; i++) {
+    if (isLineUsed(cache->lines +i)) {
+      sortables[sortables_added].line_idx = i;
+      sortables[sortables_added].line = cache->lines + i;
+      sortables[sortables_added].last_access_time_in_ms_from_epoch =
+          cache->lines[i].last_access_time_in_ms_from_epoch;
+      sortables_added ++;
+
+      // This should never fail, but let's double check to avoid overflow
+      assert(sortables_added <= *num_used_lines);
+    }
   }
 
+  //This should never fail either
+  assert(sortables_added == *num_used_lines);
+
   // Sort the sortables (what a novel idea)
-  qsort(sortables, num_lines, sizeof(LineSortable_t), sortableCompareFunc);
+  qsort(sortables, *num_used_lines, sizeof(LineSortable_t), sortableCompareFunc);
 
   return sortables;
 }
@@ -489,4 +510,8 @@ static int sortableCompareFunc(const void *a, const void *b) {
   LineSortable_t *left = (LineSortable_t *) a;
   LineSortable_t *right = (LineSortable_t *) b;
   return left->last_access_time_in_ms_from_epoch - right->last_access_time_in_ms_from_epoch;
+}
+
+static inline bool isLineUsed(DCCacheLine_t *line) {
+  return line->last_access_time_in_ms_from_epoch != UNUSED_LAST_ACCESS_TIME;
 }
