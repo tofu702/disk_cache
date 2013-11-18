@@ -110,6 +110,7 @@ void DCCloseAndFree(DCCache cache) {
   size_t lines_size = cache->header.num_lines * sizeof(DCCacheLine_t);
   munmap(cache->lines, lines_size);
   close(cache->fd);
+  free(cache->directory_path);
   free(cache);
 }
 
