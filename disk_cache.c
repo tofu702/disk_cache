@@ -158,6 +158,7 @@ void DCRemove(DCCache cache, char *key) {
 DCData DCLookup(DCCache cache, char *key) {
   uint64_t key_sha1[2];
   DCCacheLine_t *line;
+  DCData result_to_return;
   
   SHA1ForKey(key, key_sha1);
 
@@ -172,8 +173,13 @@ DCData DCLookup(DCCache cache, char *key) {
   line->last_access_time_in_ms_from_epoch = currentTimeInMSFromEpoch();
 
   //Return the file
-  // TODO: Handle a NULL return value by clearing the cache line
-  return readDataFileForKey(cache, key_sha1);
+  result_to_return = readDataFileForKey(cache, key_sha1);
+
+  //Check if the the cache is inconsistent: we think we have a key but no file exists
+  if (!result_to_return) {
+    removeLine(cache, line); //If so, remove that line
+  }
+  return result_to_return;
 }
 
 void DCEvictToSize(DCCache cache, uint64_t allowed_bytes) {
