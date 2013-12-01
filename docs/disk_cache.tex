@@ -1,0 +1,121 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb}
+\title {Disk Cache: Architecture \& Usage}
+
+\oddsidemargin -0.5in
+\evensidemargin -0.5in
+\textwidth 7.5in
+\topmargin=-1in
+\textheight=10in
+\begin{document}
+\maketitle
+
+\section{Foreword}
+There are two ways an engineer can approach a new software project. 
+
+He can write a system that he knows is the skeleton of things to come. His initial version is merely a prototype that will be improved, modified and grow in functionality for years to come. His project will be a never ending adventure that, in the ideal case, will gain more contributors and the pace of feature development will accelerate. The Redis is an excellent example of such a technology. 
+
+Another approach the developer can take is building a well defined solution that will address a particular problem, and after that problem is addressed to his satisfaction, his project will be complete. He will have many performance tweaks, bug fixes and API clarifications along the way, but his overall goal is arrive at an ultimate final product that he can declare "finished".  Ideally, when it is "finished" no  developer needs to touch its code again. Memcached is an excellent example of such a technology. 
+
+We have picked the Memcached and Redis examples intentionally. Both are well built and very popular infrastructure tools with similar objectives. Almost all who have used them would agree that they are both excellent technologies. Neither is better than the other, though one might be favored over the other for a particular use case. Should both projects continue along their current trajectories, ten years from now, a developer will not even recognize today's Redis as being the same technology, but the Memcached of the future be nearly identical to the Memcached of today.
+
+For the purposes of building DC, I elected to follow the latter approach.  \emph{Ideally, DC will achieve stability and stay at that point.}
+
+\section{Architecture}
+\subsection{Core Principles}
+The core principles of DC are:
+\begin{enumerate}
+\item Optimize For GET
+\item Get What You Pay For
+\item Near True LRU Replacement
+\item Don't Try To Do Too Much
+\item Functionally Decompose Concepts
+\end{enumerate}
+
+\subsubsection{Optimize For GET}
+GET is the most common operation a disk cache and as such we should optimize for it. Every GET operation that returns data must do an access time update. This update must be constant time and should not grow with cache size. We should go to great lengths to make sure that GET operation is as fast as possible. 
+
+\subsubsection{Get What You Pay For}
+If you are retrieving or setting something of size k, the cost of your operation should be k. There should be as few "performance surprises as possible.
+
+\subsubsection{Near True LRU Replacement}
+Optimizing GET and SET performance is more important than exactly implementing a true LRU policy. We built a cache that is nearly an LRU eviction cache, but under certain cases may evict due to a SET operation determining that all 
+
+\subsubsection{Don't Try To Do Too Much}
+Our goal is to address the particular problem of storing things on disk as a means of avoiding more expensive retrievals. The cache makes no guarantees that something will for sure remain stored into some point in the future. Thus, the cache has a very simple API, the principle methods being GET, SET and DELETE.
+
+We specifically steer clear of complex solutions such as background threads, journals and corrupt file recovery.
+
+\subsubsection{Functionally Decompose Concepts}
+Software becomes confusing and muddled when too many different functions are combined into a particular unit. For this reason, we divide the most common tasks along functional lines throughout the code base.
+
+\subsection{On Disk Data \& Metadata}
+A DC requires that both \emph{data} and \emph{metadata} be stored to disk. The data is the actual value objects that are set with the SET operation. The metadata contains information such as how to find the value for a particular key, when was the last GET for the key, how big the value is, etc. 
+
+\subsubsection{Internal Representation of Keys}
+From the external API keys are ANSI C character strings--they can be of arbitrary length. Internally we would like to have a fixed length representation of keys because fixed length fields allow fixed size on disk table entries. Thus, on disk we use \verb|key_sha1 = sha1(key)| to represent the key as a single  128 bit field. This approach is similar to the one used in the Git version control system.
+
+Given our current knowledge of sha1 hash function, the odds of a collision between two different keys are far lower than those of  accidental computational errors in the processor.
+
+\subsubsection{On Disks Representation of Data}
+The values stored in the cache are stored in files on disk with one file per key in the cache. If two keys have the same value, the value will be stored twice. Because git may store a large number of files to disk, storing all of the files in a single directory could be very slow. So, we choose the following format for file paths:
+
+\begin{verbatim}
+LET hex_sha1 = hex(sha1(key))
+Path on disk: hex_sha1[0:2]/hex_sha1.cachedata
+
+Example: 
+key = foobar
+hex_sha1 = 8843d7f92416211de9ebb963ff4ce28125932878
+Path on Disk = 88/8843d7f92416211de9ebb963ff4ce28125932878.cachedata
+\end{verbatim}
+
+\subsubsection{On Disk Representation of Metadata}
+Fast access of metadata is critical. As a result metadata is represented as an on disk table with fixed size entries. The contents of a table cell are: 
+\begin{enumerate}
+\item The last access time of the key (in milliseconds since the epoch)
+\item The SHA1 of key
+\item The size of the value
+\item Various Flags (currently not in use)
+\end{enumerate}
+
+This file can be memory mapped and then accessed like any other C array. Metadata lines a sized at 32 bytes so that they fit evenly into all common disk block sizes. We rely on the operating system to sync blocks from the memory mapped table to disk as they are modified. \\
+
+\framebox[1.1\width]{
+\begin{minipage}{.85\textwidth}
+\emph{Note:} Even in the event that an OS level failure occurs between writes and syncs, such as the device crashing before everything can be written out to disk, the metadata file on disk is resilient to faults. Some entries will still be old and point to nonexistent data files but they will also be the first to be evicted (the GET treats nonexistent data files as cache misses). Some new entries will not have been recorded and may have to be fetched again. One of the nice properties of DC is that it is inherently immune to corruption with the only expense being a few extra cache misses or evictions of nonexistent files after an OS level failure.
+\end{minipage}
+}
+
+\subsection{Lookups--Where keys are stored}
+Lookups are performed for, GET, SET and DELETE operations. As a result the lookup must be very fast. To build the lookup operation, we doing the following:
+\begin{enumerate}
+\item Compute the sha1 of the key and bit the 128 bit value into 4 32 bit parts (Part\_1, Part\_2, Part\_3, Part\_4)
+\item Compute 4 buckets, by doing \verb|bucket_X = part_X \% num_buckets|
+\item Check all 4 bucket locations for an exact match of the full key\_sha1
+\item (For GETS): Update the entry's last access time
+\end{enumerate}
+
+Thus every key will effectively be given four pseudorandom bucket locations in the table and may exist in any of the four. We always check all four buckets when looking up a key. 
+
+\subsection{SET operations}
+The SET operation is implemented as follows: 
+\begin{enumerate}
+\item Lookup the key: if it already exists, replace that value and update the cache entry
+\item If the key does not exist and all 4 buckets are full: evict the oldest bucket and store the key there
+\item If size of the disk cache exists the maximum allowed size, perform eviction
+\end{enumerate}
+
+\subsection{Eviction}
+Eviction is a reasonably expensive process. Eviction only occurs on SET operations where the size of the cache exceeds the maximum allowed size. Because eviction is expensive, when we evict we remove enough entries to drive the cache size down to 75\% of the maximum allowed size. Eviction is performed as follows:
+\begin{enumerate}
+\item Sort the cache entries by last access time (this is done in a separate data structure from the memory mapped table)
+\item Delete the oldest entry
+\item If the cache size is still above the 75\% threshold go to step \#2
+\end{enumerate}
+
+
+\section{Usage}
+TODO
+
+\end{document}
