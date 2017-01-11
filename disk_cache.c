@@ -89,7 +89,12 @@ DCCache DCLoad(char *cache_directory_path) {
   cache->directory_path = strdup(cache_directory_path); // cache_directory_path could be freed
 
   //Read in the header
-  read(cache->fd, &(cache->header), sizeof(DCCacheHeader_t));
+  size_t amt_read;
+  amt_read = read(cache->fd, &(cache->header), sizeof(DCCacheHeader_t));
+  if (amt_read != sizeof(DCCacheHeader_t)) {
+    fprintf(stderr, "ERROR: Unable to read cache header\n");
+    return NULL;
+  }
 
   //mmap the lines
   size_t lines_start_offset = sizeof(DCCacheHeader_t); // The lines starts after the header

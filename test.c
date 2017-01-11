@@ -4,11 +4,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-
+#include "test_helpers.h"
 #include "disk_cache.h"
 
 #define WORKING_PATH  "/tmp/dc_test"
 #define NON_EXISTANT_PATH WORKING_PATH "/non_existant"
+#define CACHE_FN "cache_data"
 
 int createTest() {
   DCCache no_cache = DCLoad(NON_EXISTANT_PATH);
@@ -23,6 +24,25 @@ int createTest() {
 
   // If it didn't crash here, we'll assume it worked
   return 0;
+}
+
+
+int loadAndAddWithCorruptCacheDataFileTest() {
+  char path[256];
+  FILE *outfile;
+
+  sprintf(path, "%s/%s", WORKING_PATH, CACHE_FN);
+  outfile = fopen(path, "w");
+  fclose(outfile);
+
+  fprintf(stderr, "** IGNORE THIS: ");
+  DCCache cache = DCLoad(WORKING_PATH);
+  if (!cache) {
+    return 0;
+  } else {
+    printf("Loaded the cache when we shouldn't have\n");
+    return 1;
+  }
 }
 
 int simpleAddTest() {
@@ -51,7 +71,7 @@ int simpleAddTest() {
 }
 
 int addTestWithOverwrites() {
-  DCCache cache = DCMake("/tmp", 2, 0);
+  DCCache cache = DCMake(WORKING_PATH, 2, 0);
   // It should evict the oldest
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
   usleep(2000);
@@ -207,12 +227,14 @@ int main(int argc, char **argv) {
 
   // BEGIN TESTS
   createTest();
+  loadAndAddWithCorruptCacheDataFileTest();
   simpleAddTest();
   addTestWithOverwrites();
   testLookupSetsAccessTimeAndReplacesEarliestAccessed();
   evictionTest();
 
-  //CLEANUP: TODO, factor recursiveDeletePath into a common helper
+  // Cleanup
+  recursiveDeletePath(WORKING_PATH);
 
   return 0;
 }
