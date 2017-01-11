@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/stat.h>
-#include <sys/time.h>
-
+#include "test_helpers.h"
 #include "disk_cache.h"
 
 
@@ -88,16 +86,10 @@ double standardBenchmark(int cache_size, int max_bytes, int num_adds, int num_ge
 }
 
 /***Helpers for standardBenchmark***/
-double fTime() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return ((double) (tv.tv_sec))  +  ((double) (tv.tv_usec/1000000.0));
-}
 
 void computeKey(int key_num, char dest[MAX_KEY_SIZE]) {
   sprintf(dest, "%d", key_num);
 }
-
 
 uint8_t *dataForKeyNum(int key_num, int max_file_size) {
   int num_vals = max_file_size / sizeof(uint64_t);
@@ -108,12 +100,6 @@ uint8_t *dataForKeyNum(int key_num, int max_file_size) {
     returnme_as_uint64_t_arr[i] = (uint64_t) i;
   }
   return returnme;
-}
-
-void recursiveDeletePath(char *path) {
-  char buf[256 + strlen(path)];
-  sprintf(buf, "/bin/bash -c 'rm -rf %s'", path);
-  pclose(popen(buf, "r"));
 }
 
 /*** main function ***/
