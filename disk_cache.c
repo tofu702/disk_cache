@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -235,21 +236,24 @@ void DCDataFree(DCData data) {
 
 
 void DCPrint(DCCache cache) {
+  // Note: In this function we cast to long long unsigned instead of using the PRIu64 from
+  // inttypes, this is because these format strings appear more readable to the author
   printf("***PRINTING CACHE DATA***\n");
   printf("\tDirectory Path: %s\n", cache->directory_path);
   printf("\tHeader num_lines: %d\n", cache->header.num_lines);
-  printf("\tHeader max_bytes: %llu\n", cache->header.max_bytes);
+  printf("\tHeader max_bytes: %llu\n", (long long unsigned) cache->header.max_bytes);
   printf("\tfd: %d\n", cache->fd);
-  printf("\tcurrent_size_in_bytes: %llu\n", cache->current_size_in_bytes);
-  printf("\tlines address: %llx\n", (uint64_t) cache->lines);
-  printf("\tmmap_start address: %llx\n", (uint64_t) cache->mmap_start);
+  printf("\tcurrent_size_in_bytes: %llu\n", (long long unsigned) cache->current_size_in_bytes);
+  printf("\tlines address: %llx\n", (long long unsigned) cache->lines);
+  printf("\tmmap_start address: %llx\n", (long long unsigned) cache->mmap_start);
   for (uint32_t i=0; i < cache->header.num_lines; i++) {
     DCCacheLine_t *line = cache->lines + i;
     if (line->last_access_time_in_ms_from_epoch == 0) {
       printf("\t\tLine %03d: EMPTY\n", i);
     } else {
-      printf("\t\tLine %03d: %llx%llx | %llu ms | %x flags | %u bytes\n", i, line->key_sha1[0],
-             line->key_sha1[1], line->last_access_time_in_ms_from_epoch, line->flags,
+      printf("\t\tLine %03d: %016llx%016llx | %llu ms | %x flags | %u bytes\n", i,
+             (long long unsigned) line->key_sha1[0], (long long unsigned) line->key_sha1[1],
+             (long long unsigned) line->last_access_time_in_ms_from_epoch, line->flags,
              line->size_in_bytes);
     }
   }
@@ -367,7 +371,8 @@ static void dirForSHA1(DCCache cache, uint64_t sha1[2], char *dest) {
 
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest) {
   uint8_t subdir = sha1[0] / 65536 / 65536 / 65536 / 256; // Use division to be byte order agnostic
-  sprintf(dest, "%s/%02x/%016llx%016llx.cache_data", cache->directory_path, subdir, sha1[0], sha1[1]);
+  sprintf(dest, "%s/%02x/%016llx%016llx.cache_data", cache->directory_path, subdir,
+      (long long unsigned) sha1[0], (long long unsigned) sha1[1]);
 }
 
 static uint64_t currentTimeInMSFromEpoch() {

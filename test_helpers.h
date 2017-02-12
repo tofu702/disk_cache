@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-static double fTime() {
+static inline double fTime() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return ((double) (tv.tv_sec))  +  ((double) (tv.tv_usec/1000000.0));
