@@ -9,6 +9,8 @@
 
 #define WORKING_PATH  "/tmp/dc_test"
 #define NON_EXISTANT_PATH WORKING_PATH "/non_existant"
+#define NON_WRITABLE_ENCLOSING_PATH WORKING_PATH "/not_writable"
+#define NON_WRITABLE_PATH NON_WRITABLE_ENCLOSING_PATH "/foo"
 #define CACHE_FN "cache_data"
 
 int createTest() {
@@ -23,6 +25,20 @@ int createTest() {
   printf("createTest Complete");
 
   // If it didn't crash here, we'll assume it worked
+  return 0;
+}
+
+int createFailsIfPathNotWritable() {
+  DCCache no_cache;
+  mkdir(NON_WRITABLE_ENCLOSING_PATH, 0555);
+  no_cache = DCMake(NON_WRITABLE_PATH, 16, 0);
+
+  recursiveDeletePath(NON_WRITABLE_ENCLOSING_PATH);
+
+  if (no_cache) {
+    printf("Created a cache when supposed to be impossible, createFailsIfPathNotWritable fails");
+    return 1;
+  }
   return 0;
 }
 
@@ -248,6 +264,7 @@ int main(int argc, char **argv) {
 
   // BEGIN TESTS
   createTest();
+  createFailsIfPathNotWritable();
   loadAndAddWithCorruptCacheDataFileTest();
   simpleAddTest();
   addTestWithOverwrites();

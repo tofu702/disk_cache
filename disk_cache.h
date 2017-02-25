@@ -75,6 +75,7 @@ typedef DCCache_t *DCCache;
  * -cache_directory_path: A (preferably empty) directory where the cache data will be stored
  * -num_lines: The maximum number of elements to store in the cache, dictates memory usage
  * -max_bytes: The maximum number of bytes to store in the cache. SPECIFY 0 FOR NO LIMIT
+ * Returns: The reated DCCache or null if we were unable to create it
  */
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_bytes);
 

@@ -33,8 +33,8 @@ typedef struct {
 /***PREPROCESSOR FUNCTION DECLARATIONS***/
 static size_t computeMaxFilePathSize(char *cache_directory_path);
 static void computeCachePath(char *cache_directory_path, char *dest, int dest_len);
-static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes);
-static void createSubDirs(char *cache_directory_path);
+static bool createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes);
+static bool createSubDirs(char *cache_directory_path);
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines);
 static void SHA1ForKey(char *key, uint64_t sha1[2]);
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest);
@@ -64,14 +64,23 @@ static int sortableCompareFunc(const void *a, const void *b);
 DCCache DCMake(char *cache_directory_path, uint32_t num_lines, uint64_t max_bytes) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
   char file_path[file_path_size];
+  bool data_file_created_successfully, dirs_created_successfully;
   computeCachePath(cache_directory_path, file_path, file_path_size);
-  createDataFile(file_path, num_lines, max_bytes);
-  createSubDirs(cache_directory_path);
+  data_file_created_successfully = createDataFile(file_path, num_lines, max_bytes);
+
+  if (!data_file_created_successfully) {
+    return NULL;
+  }
+
+  dirs_created_successfully = createSubDirs(cache_directory_path);
+  if (!dirs_created_successfully) {
+    return NULL;
+  }
 
   return DCLoad(cache_directory_path);
 }
 
-//TODO: Implement a LOAD or Make function 
+//TODO: Implement a LOAD or Make function
 
 DCCache DCLoad(char *cache_directory_path) {
   size_t file_path_size = computeMaxFilePathSize(cache_directory_path);
@@ -102,7 +111,7 @@ DCCache DCLoad(char *cache_directory_path) {
   size_t total_file_size = lines_start_offset + lines_size;
   cache->mmap_start = mmap(0, total_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, cache->fd, 0);
   if (cache->mmap_start == MAP_FAILED) {
-    fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size, 
+    fprintf(stderr, "Map Failed! fd=%d, lines_size=%d, error:%s\n", (int)cache->fd, (int)lines_size,
             strerror(errno));
     return NULL; // If it's corrupt, we it might as well not exist
   }
@@ -266,8 +275,12 @@ static void computeCachePath(char *cache_directory_path, char *dest, int dest_le
   sprintf(dest, "%s/%s", cache_directory_path, CACHE_FN);
 }
 
-static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes) {
+static bool createDataFile(char *file_path, uint32_t num_lines, uint64_t max_bytes) {
   FILE *outfile = fopen(file_path, "w");
+
+  if (!outfile) {
+    return false;
+  }
 
   // Create the header
   DCCacheHeader_t header = {.num_lines=num_lines, .max_bytes=max_bytes};
@@ -281,16 +294,22 @@ static void createDataFile(char *file_path, uint32_t num_lines, uint64_t max_byt
     fwrite(line_buf, sizeof(uint8_t), line_size, outfile);
   }
   fclose(outfile);
+  return true;
 }
 
 
 // We want to create create subdirs from 00 to FF
-static void createSubDirs(char *cache_directory_path) {
+static bool createSubDirs(char *cache_directory_path) {
   char subdir_path[strlen(cache_directory_path) + 16];
+  int mkdir_rv;
   for (int i=0; i < 256; i++) {
     sprintf(subdir_path, "%s/%02x", cache_directory_path, i);
-    mkdir(subdir_path, 0777);
+    mkdir_rv = mkdir(subdir_path, 0777);
+    if (mkdir_rv && errno != EEXIST) {
+      return false;
+    }
   }
+  return true;
 }
 
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines) {
