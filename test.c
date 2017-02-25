@@ -106,6 +106,27 @@ int addTestWithOverwrites() {
   return 0;
 }
 
+int addFailsIfDirectoryDoesntExist() {
+  char *test_key = "TEST KEY";
+  char *test_val = "TEST VAL";
+  bool add_success;
+
+  DCCache cache = DCMake(WORKING_PATH, 16, 0);
+  DCCloseAndFree(cache);
+
+  DCCache cache2 = DCLoad(WORKING_PATH);
+  recursiveDeletePath(WORKING_PATH"/2b");
+  add_success = DCAdd(cache2, test_key, (uint8_t *)test_val, strlen(test_val) + 1);
+  DCCloseAndFree(cache2);
+
+  if (add_success) {
+    printf("addFailsIfDirectoryDoesntExist should have reported failure, but reports success\n");
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
   DCCache cache = DCMake(WORKING_PATH, 2, 0);
   DCAdd(cache, "key1", (uint8_t *)"val1", 5);
@@ -230,6 +251,7 @@ int main(int argc, char **argv) {
   loadAndAddWithCorruptCacheDataFileTest();
   simpleAddTest();
   addTestWithOverwrites();
+  addFailsIfDirectoryDoesntExist();
   testLookupSetsAccessTimeAndReplacesEarliestAccessed();
   evictionTest();
 

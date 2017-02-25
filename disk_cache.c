@@ -47,7 +47,7 @@ static inline bool isLineUsed(DCCacheLine_t *line);
 
 //DCAdd Helpers
 static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[2]);
-static void saveDataFileForKey(DCCache cache, uint64_t sha1[2], uint8_t *data, uint64_t data_len);
+static bool saveDataFileForKey(DCCache cache, uint64_t sha1[2], uint8_t *data, uint64_t data_len);
 
 //DCLookup Helpers
 static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]);
@@ -119,7 +119,7 @@ void DCCloseAndFree(DCCache cache) {
   free(cache);
 }
 
-void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
+bool DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   uint64_t key_sha1[2];
   SHA1ForKey(key, key_sha1);
 
@@ -147,7 +147,7 @@ void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len) {
   cache->current_size_in_bytes += data_len;
 
   // Save the actual file
-  saveDataFileForKey(cache, key_sha1, data, data_len);
+  return saveDataFileForKey(cache, key_sha1, data, data_len);
 }
 
 void DCRemove(DCCache cache, char *key) {
@@ -403,13 +403,17 @@ static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[
 
 /* Take the provided cache/sha1 to compute a path for the data and save it to a file there
  */ 
-static void saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, uint64_t data_len) {
+static bool saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, uint64_t data_len) {
   char file_path[computeMaxFilePathSize(cache->directory_path)];
   pathForSHA1(cache, sha1, file_path);
 
   FILE *outfile = fopen(file_path, "w");
+  if (!outfile) {
+    return false;
+  }
   fwrite(data, sizeof(uint8_t), data_len, outfile);
   fclose(outfile);
+  return true;
 }
 
 static inline bool isLineUsed(DCCacheLine_t *line) {

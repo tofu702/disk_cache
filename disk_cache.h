@@ -6,6 +6,7 @@
 #ifndef DISKCACHE_H_
 #define DISKCACHE_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 
@@ -99,8 +100,9 @@ void DCCloseAndFree(DCCache cache);
  * -key: A null terminated string for a key to add
  * -data: A byte array of the data to store in the cache
  * -data_len: The length of data, in bytes
+ * Returns: true on success and false on failure
  */
-void DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
+bool DCAdd(DCCache cache, char *key, uint8_t *data, uint64_t data_len);
 
 /* Lookup a key in the provided DCCache.
  * Arguments:
