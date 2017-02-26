@@ -9,20 +9,19 @@
 
 #define WORKING_PATH  "/tmp/dc_test"
 #define NON_EXISTANT_PATH WORKING_PATH "/non_existant"
-#define NON_WRITABLE_ENCLOSING_PATH WORKING_PATH "/not_writable"
-#define NON_WRITABLE_PATH NON_WRITABLE_ENCLOSING_PATH "/foo"
+#define NON_WRITABLE_PATH WORKING_PATH "/not_writable"
 #define CACHE_FN "cache_data"
 
 int createTest() {
   DCCache no_cache = DCLoad(NON_EXISTANT_PATH);
   if (no_cache != NULL) {
-    printf("Loaded non-existant cache, createTest failed\n");
+    printf("FAILED: Loaded non-existant cache, createTest failed\n");
     return 1;
   }
   
   DCCache cache = DCMake(WORKING_PATH, 16, 0);
   DCCloseAndFree(cache);
-  printf("createTest Complete");
+  printf("PASSED: createTest\n");
 
   // If it didn't crash here, we'll assume it worked
   return 0;
@@ -30,18 +29,20 @@ int createTest() {
 
 int createFailsIfPathNotWritable() {
   DCCache no_cache;
-  mkdir(NON_WRITABLE_ENCLOSING_PATH, 0555);
+  mkdir(NON_WRITABLE_PATH, 0555);
   no_cache = DCMake(NON_WRITABLE_PATH, 16, 0);
 
-  recursiveDeletePath(NON_WRITABLE_ENCLOSING_PATH);
+  chmod(NON_WRITABLE_PATH, 0777);
+  recursiveDeletePath(NON_WRITABLE_PATH);
 
   if (no_cache) {
-    printf("Created a cache when supposed to be impossible, createFailsIfPathNotWritable fails");
+    printf("FAILED: createFailsIfPathNotWritable Created a cache when supposed to be impossible\n");
     return 1;
+  } else {
+    printf("PASSED: createFailsIfPathNotWritable\n");
+    return 0;
   }
-  return 0;
 }
-
 
 int loadAndAddWithCorruptCacheDataFileTest() {
   char path[256];
@@ -77,11 +78,11 @@ int simpleAddTest() {
   DCCloseAndFree(cache3);
 
   if (strncmp((char *)result->data, test_val, strlen(test_val)) == 0) {
-    printf("addTest passed '%s' == '%s'\n", test_val, result->data);
+    printf("PASSED: addTest '%s' == '%s'\n", test_val, result->data);
     DCDataFree(result);
     return 0;
   } else {
-    printf("addTest failed '%s' != '%s'\n", test_val, result->data);
+    printf("FAILED: addTest '%s' != '%s'\n", test_val, result->data);
     return 1;
   }
 }
@@ -105,12 +106,12 @@ int addTestWithOverwrites() {
     return 1;
   }
   if (strcmp((char *) r2->data, "val2") != 0) {
-    printf("Test Failure: Should have found 'val2' as value for 'key2', instead got '%s'\n",
+    printf("FAILED: Should have found 'val2' as value for 'key2', instead got '%s'\n",
            (char *) r2->data);
     return 1;
   }
   if (strcmp((char *) r3->data, "val3") != 0) {
-    printf("Test Failure: Should have found 'val3' as value for 'key3', instead got '%s'\n",
+    printf("FAILED: Should have found 'val3' as value for 'key3', instead got '%s'\n",
            (char *) r3->data);
     return 1;
   }
@@ -118,11 +119,11 @@ int addTestWithOverwrites() {
   DCDataFree(r2);
   DCDataFree(r3);
 
-  printf("Passed addTestWithOverwrites\n");
+  printf("PASSED: addTestWithOverwrites\n");
   return 0;
 }
 
-int addFailsIfDirectoryDoesntExist() {
+int addRecoversIfDirectoryDoesntExist() {
   char *test_key = "TEST KEY";
   char *test_val = "TEST VAL";
   bool add_success;
@@ -136,10 +137,36 @@ int addFailsIfDirectoryDoesntExist() {
   DCCloseAndFree(cache2);
 
   if (add_success) {
-    printf("addFailsIfDirectoryDoesntExist should have reported failure, but reports success\n");
-    return 1;
-  } else {
+    printf("PASSED: addRecoversIfDirectoryDoesntExist\n");
     return 0;
+  } else {
+    printf("FAIL: addRecoversIfDirectoryDoesntExist should have worked, but fails\n");
+    return 1;
+  }
+}
+
+int addFailsIfDirectoryNotExistsAndNotWriteable() {
+  char *test_key = "TEST KEY";
+  char *test_val = "TEST VAL";
+  bool add_success;
+
+  mkdir(NON_WRITABLE_PATH, 0777);
+  DCCache cache = DCMake(NON_WRITABLE_PATH, 16, 0);
+  DCCloseAndFree(cache);
+
+  DCCache cache2 = DCLoad(NON_WRITABLE_PATH);
+  recursiveDeletePath(NON_WRITABLE_PATH"/2b");
+  chmod(NON_WRITABLE_PATH, 0555);
+  add_success = DCAdd(cache2, test_key, (uint8_t *)test_val, strlen(test_val) + 1);
+  DCCloseAndFree(cache2);
+  chmod(NON_WRITABLE_PATH, 0777);
+
+  if (!add_success) {
+    printf("PASSED: addFailsIfDirectoryNotExistsAndNotWriteable\n");
+    return 0;
+  } else {
+    printf("FAILED: addFailsIfDirectoryNotExistsAndNotWriteable: add worked but should have failed\n");
+    return 1;
   }
 }
 
@@ -160,20 +187,20 @@ int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
   DCCloseAndFree(cache);
   
   if (!r1) {
-    printf("Test Failure: Should have gotten a non-null r1\n");
+    printf("FAILED: Should have gotten a non-null r1\n");
     return 1;
   }
   if (strcmp((char *)r1->data, "val1") != 0) {
-    printf("Test Failure: Should have found 'val1' for key 'key1', instead got '%s'\n",
+    printf("FAILED: Should have found 'val1' for key 'key1', instead got '%s'\n",
            (char *) r1->data);
     return 1;
   }
   if (r2) {
-    printf("Test failure: Should have delete 'key2'\n");
+    printf("FAILED: Should have delete 'key2'\n");
     return 1;
   }
   if (strcmp((char *) r3->data, "val3") != 0) {
-    printf("Test Failure: Should have found 'val3' as value for 'key3', instead got '%s'\n",
+    printf("FAILED: Should have found 'val3' as value for 'key3', instead got '%s'\n",
            (char *) r3->data);
     return 1;
   }
@@ -181,7 +208,7 @@ int testLookupSetsAccessTimeAndReplacesEarliestAccessed() {
   DCDataFree(r1);
   DCDataFree(r3);
 
-  printf("Passed testLookupSetsAccessTimeAndReplacesEarliestAccessed\n");
+  printf("PASSED: testLookupSetsAccessTimeAndReplacesEarliestAccessed\n");
   return 0;
 }
 
@@ -240,21 +267,21 @@ int evictionTest() {
   DCCloseAndFree(cache2);
 
   if (r1 || r2) {
-    printf("Test Failure: r1 & r2 should have been evicted\n");
+    printf("FAILED: r1 & r2 should have been evicted\n");
     return 1;
   }
   if (!r3) {
-    printf("Test Failure: r3 should not have been evicted\n");
+    printf("FAILED: r3 should not have been evicted\n");
     return 1;
   }
   if (!r4) {
-    printf("Test Failure: r4 should be here?!?\n");
+    printf("FAILED: r4 should be here?!?\n");
     return 1;
   }
   
   DCDataFree(r3);
   DCDataFree(r4);
-  printf("evictionTest passed\n");
+  printf("PASSED: evictionTest\n");
   return 0;
 }
 
@@ -268,7 +295,8 @@ int main(int argc, char **argv) {
   loadAndAddWithCorruptCacheDataFileTest();
   simpleAddTest();
   addTestWithOverwrites();
-  addFailsIfDirectoryDoesntExist();
+  addRecoversIfDirectoryDoesntExist();
+  addFailsIfDirectoryNotExistsAndNotWriteable();
   testLookupSetsAccessTimeAndReplacesEarliestAccessed();
   evictionTest();
 

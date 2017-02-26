@@ -37,6 +37,8 @@ static bool createDataFile(char *file_path, uint32_t num_lines, uint64_t max_byt
 static bool createSubDirs(char *cache_directory_path);
 static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[NUM_LOOKUP_INDICIES], uint32_t num_lines);
 static void SHA1ForKey(char *key, uint64_t sha1[2]);
+static bool mkdirForSHA1IfNotExists(DCCache cache, uint64_t sha[2]);
+static void dirForSHA1(DCCache cache, uint64_t sha[2], char *dest);
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest);
 static void removeLine(DCCache cache, DCCacheLine_t *line);
 static void removeFileForLine(DCCache cache, DCCacheLine_t *line);
@@ -346,6 +348,23 @@ static void SHA1ForKey(char *key, uint64_t sha1[2]) {
   memcpy(sha1, ctx.Message_Digest, sizeof(uint64_t) * 2);
 }
 
+static bool mkdirForSHA1IfNotExists(DCCache cache, uint64_t sha1[2]) {
+  char dir_path[computeMaxFilePathSize(cache->directory_path)];
+  int mkdir_rv;
+
+  dirForSHA1(cache, sha1, dir_path);
+  mkdir_rv = mkdir(dir_path, 0777);
+  if (mkdir_rv && errno != EEXIST) {
+    return false;
+  }
+  return true;
+}
+
+static void dirForSHA1(DCCache cache, uint64_t sha1[2], char *dest) {
+  uint8_t subdir = sha1[0] / 65536 / 65536 / 65536 / 256; // Use division to be byte order agnostic
+  sprintf(dest, "%s/%02x", cache->directory_path, subdir);
+}
+
 static void pathForSHA1(DCCache cache, uint64_t sha1[2], char *dest) {
   uint8_t subdir = sha1[0] / 65536 / 65536 / 65536 / 256; // Use division to be byte order agnostic
   sprintf(dest, "%s/%02x/%016llx%016llx.cache_data", cache->directory_path, subdir, sha1[0], sha1[1]);
@@ -427,8 +446,17 @@ static bool saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, 
   pathForSHA1(cache, sha1, file_path);
 
   FILE *outfile = fopen(file_path, "w");
+
   if (!outfile) {
-    return false;
+    // Handle the case of the directory not existing, if the cache is in /tmp individaul dirs
+    // may be gced over time
+    mkdirForSHA1IfNotExists(cache, sha1);
+    outfile = fopen(file_path, "w");
+
+    // That didn't fix it; we're out of ideas
+    if (!outfile) {
+      return false;
+    }
   }
   fwrite(data, sizeof(uint8_t), data_len, outfile);
   fclose(outfile);
