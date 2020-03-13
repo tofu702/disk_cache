@@ -108,6 +108,11 @@ DCCache DCLoad(char *cache_directory_path) {
     return NULL;
   }
 
+  if (cache->header.num_lines == 0) {
+    fprintf(stderr, "ERROR: Cache Header is Invalid\n");
+    return NULL;
+  }
+
   //mmap the lines
   size_t lines_start_offset = sizeof(DCCacheHeader_t); // The lines starts after the header
   size_t lines_size = cache->header.num_lines * sizeof(DCCacheLine_t);
@@ -179,7 +184,7 @@ DCData DCLookup(DCCache cache, char *key) {
   uint64_t key_sha1[2];
   DCCacheLine_t *line;
   DCData result_to_return;
-  
+
   SHA1ForKey(key, key_sha1);
 
   line = findLineThatMatchesKey(cache, key_sha1);
@@ -328,7 +333,7 @@ static void computeLookupIndiciesForKey(uint64_t key_sha1[2], uint32_t indicies[
 static void removeLine(DCCache cache, DCCacheLine_t *line) {
   cache->current_size_in_bytes -= line->size_in_bytes;
   removeFileForLine(cache, line);
-  
+
   // Zero the line (is bzero faster?)
   line->last_access_time_in_ms_from_epoch = UNUSED_LAST_ACCESS_TIME;
   line->key_sha1[0] = 0;
@@ -403,7 +408,7 @@ static void maybeEvict(DCCache cache, uint64_t proposed_increase_bytes) {
   if ((cache->current_size_in_bytes + proposed_increase_bytes) < cache->header.max_bytes) {
     return;
   }
-  
+
   // Ok, we have to evict. After the insertion we want the size to be:
   //   max_bytes * EVICT_TO_THIS_RATIO
   // So we need to decrease that number by proposed_increase_bytes
@@ -420,7 +425,7 @@ static void maybeEvict(DCCache cache, uint64_t proposed_increase_bytes) {
  * indicies in the associative set and picking either:
  * 1. The first empty one
  * 2. The one with the oldest last_access_time_in_ms_from_epoch
- */ 
+ */
 static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[2]) {
   uint32_t lookup_idxs[NUM_LOOKUP_INDICIES];
   computeLookupIndiciesForKey(key_sha1, lookup_idxs, cache->header.num_lines);
@@ -433,7 +438,7 @@ static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[
     //If this line is empty, we can break
     if (line->last_access_time_in_ms_from_epoch == UNUSED_LAST_ACCESS_TIME) {
       best_line = line;
-      break; 
+      break;
     }
 
     //This is the oldest line we've seen so far
@@ -445,7 +450,7 @@ static DCCacheLine_t *findBestLineToWriteKeyTo(DCCache cache, uint64_t key_sha1[
 }
 
 /* Take the provided cache/sha1 to compute a path for the data and save it to a file there
- */ 
+ */
 static bool saveDataFileForKey(DCCache cache, uint64_t sha1[2],  uint8_t *data, uint64_t data_len) {
   char file_path[computeMaxFilePathSize(cache->directory_path)];
   pathForSHA1(cache, sha1, file_path);
@@ -477,7 +482,7 @@ static inline bool isLineUsed(DCCacheLine_t *line) {
 
 
 /* Return the line that exactly matches the provided key_sha1. If none is found we return NULL.
- */ 
+ */
 static DCCacheLine_t *findLineThatMatchesKey(DCCache cache, uint64_t key_sha1[2]) {
   uint32_t indicies[NUM_LOOKUP_INDICIES];
 
